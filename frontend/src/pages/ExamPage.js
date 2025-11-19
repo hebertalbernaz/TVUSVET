@@ -111,6 +111,8 @@ export default function ExamPage() {
     setOrgansData(newOrgans);
   };
 
+  // --- DOCX HELPERS ---
+  
   const dataURLToUint8Array = (dataURL) => {
     const base64 = dataURL.split(',')[1];
     const binary = atob(base64);
@@ -120,6 +122,7 @@ export default function ExamPage() {
     return bytes;
   };
 
+  // Calcula tamanho da imagem mantendo proporção para DOCX
   const getImageSize = (base64, targetWidth = 250) => {
     return new Promise((resolve) => {
       const img = new Image();
@@ -132,6 +135,7 @@ export default function ExamPage() {
     });
   };
 
+  // Parser de Markdown
   const parseText = (text) => {
     const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
     return parts.map(part => {
@@ -148,9 +152,11 @@ export default function ExamPage() {
       const settings = await db.getSettings();
       const headerChildren = [];
 
+      // 1. Cabeçalho com Imagem Proporcional
       if (settings.letterhead_path?.startsWith('data:image')) {
          const dims = await getImageSize(settings.letterhead_path, 600);
          const imgData = dataURLToUint8Array(settings.letterhead_path);
+         
          headerChildren.push(new Paragraph({
              children: [new ImageRun({ 
                  data: imgData, 
@@ -160,6 +166,7 @@ export default function ExamPage() {
              spacing: { after: 200 }
          }));
       } else {
+         // Texto fallback
          headerChildren.push(new Paragraph({
              children: [new TextRun({ text: settings.clinic_name || 'LAUDO', bold: true, size: 28 })],
              alignment: AlignmentType.CENTER,
@@ -193,6 +200,7 @@ export default function ExamPage() {
         }
       });
 
+      // 2. Imagens Limpas (Sem Borda, Sem Texto)
       if (examImages.length > 0) {
         docChildren.push(new Paragraph({ children: [new PageBreak()] }));
         
@@ -202,7 +210,13 @@ export default function ExamPage() {
             const addImgCell = async (img) => {
                 const dims = await getImageSize(img.data, 250);
                 return new TableCell({
-                    borders: { top: {style: BorderStyle.NONE}, bottom: {style: BorderStyle.NONE}, left: {style: BorderStyle.NONE}, right: {style: BorderStyle.NONE} },
+                    // Borda invisível na célula
+                    borders: { 
+                        top: { style: BorderStyle.NONE, size: 0, color: "auto" }, 
+                        bottom: { style: BorderStyle.NONE, size: 0, color: "auto" }, 
+                        left: { style: BorderStyle.NONE, size: 0, color: "auto" }, 
+                        right: { style: BorderStyle.NONE, size: 0, color: "auto" } 
+                    },
                     children: [
                         new Paragraph({
                             alignment: AlignmentType.CENTER,
@@ -218,13 +232,22 @@ export default function ExamPage() {
 
             cells.push(await addImgCell(examImages[i]));
             if (i+1 < examImages.length) cells.push(await addImgCell(examImages[i+1]));
+            
             rows.push(new TableRow({ children: cells }));
         }
         
         docChildren.push(new Table({ 
             rows, 
             width: { size: 100, type: WidthType.PERCENTAGE },
-            borders: { top: {style: BorderStyle.NONE}, bottom: {style: BorderStyle.NONE}, left: {style: BorderStyle.NONE}, right: {style: BorderStyle.NONE}, insideHorizontal: {style: BorderStyle.NONE}, insideVertical: {style: BorderStyle.NONE} }
+            // Borda invisível na tabela
+            borders: { 
+                top: { style: BorderStyle.NONE, size: 0, color: "auto" },
+                bottom: { style: BorderStyle.NONE, size: 0, color: "auto" },
+                left: { style: BorderStyle.NONE, size: 0, color: "auto" },
+                right: { style: BorderStyle.NONE, size: 0, color: "auto" },
+                insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "auto" },
+                insideVertical: { style: BorderStyle.NONE, size: 0, color: "auto" }
+            }
         }));
       }
 
@@ -281,6 +304,7 @@ export default function ExamPage() {
               {getAvailableLanguages().map(l => <SelectItem key={l.code} value={l.code}>{l.flag} {l.name}</SelectItem>)}
             </SelectContent>
           </Select>
+           {/* BOTÃO PDF */}
            <Button variant="outline" size="sm" onClick={handlePrintPdf}>
              <Printer className="h-4 w-4 mr-2"/> PDF
            </Button>
@@ -296,7 +320,7 @@ export default function ExamPage() {
       {/* Layout de 3 Colunas Fixo */}
       <div className="flex-1 grid grid-cols-12 min-h-0">
         
-        {/* Coluna 1: Imagens (20%) */}
+        {/* Coluna 1: Imagens (Esquerda - 20%) */}
         <div className="col-span-2 border-r bg-muted/10 flex flex-col min-h-0">
           <div className="p-2 border-b flex justify-between items-center">
              <span className="text-xs font-bold text-muted-foreground">IMAGENS ({examImages.length})</span>
@@ -319,7 +343,7 @@ export default function ExamPage() {
           </ScrollArea>
         </div>
 
-        {/* Coluna 2: Editor (70%) */}
+        {/* Coluna 2: Editor (Meio - 70%) */}
         <div className="col-span-8 flex flex-col min-h-0 bg-background p-4 gap-4">
           {currentOrgan ? (
             <OrganEditor 
@@ -330,7 +354,7 @@ export default function ExamPage() {
           ) : <div className="flex items-center justify-center h-full text-muted-foreground">Selecione uma estrutura ao lado</div>}
         </div>
 
-        {/* Coluna 3: Estruturas (15%) */}
+        {/* Coluna 3: Estruturas (Direita - 15%) */}
         <div className="col-span-2 border-l bg-muted/10 flex flex-col min-h-0">
            <div className="p-2 border-b"><span className="text-xs font-bold text-muted-foreground">ROTEIRO</span></div>
            <ScrollArea className="flex-1">
@@ -351,20 +375,23 @@ export default function ExamPage() {
               </div>
            </ScrollArea>
         </div>
-      </div>
 
-      {/* Área de Impressão (PDF) */}
+      </div>
+      
+      {/* Área de Impressão (Visível apenas no PDF) */}
       <div id="printable-report" className="hidden print:block p-8 font-serif">
          <div className="text-center mb-6 border-b pb-4">
             <h1 className="text-2xl font-bold uppercase">Laudo Veterinário</h1>
             <p>{patient.name} - {patient.breed}</p>
          </div>
+         
          {organsData.map((o, i) => o.report_text && (
             <div key={i} className="mb-4">
                <h3 className="font-bold text-lg border-b mb-1">{o.organ_name}</h3>
                <p className="whitespace-pre-wrap text-justify">{o.report_text}</p>
             </div>
          ))}
+         
          {examImages.length > 0 && (
             <div className="mt-6 page-break-before">
                <div className="grid grid-cols-2 gap-4">
@@ -403,6 +430,7 @@ function OrganEditor({ organ, templates, onChange }) {
     onChange('measurements', newM);
   };
 
+  // Função para deletar medida
   const deleteMeasurement = (key) => {
     const newM = { ...measurements };
     delete newM[key];
@@ -412,37 +440,69 @@ function OrganEditor({ organ, templates, onChange }) {
 
   return (
     <>
-        <h2 className="text-2xl font-bold text-primary flex items-center gap-2">{organ.organ_name}</h2>
+        <h2 className="text-2xl font-bold text-primary flex items-center gap-2">
+            {organ.organ_name}
+        </h2>
+               
         <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
             <div className="flex flex-col gap-3">
                 <div className="bg-muted/20 p-3 rounded border">
                     <div className="flex gap-2 mb-2">
                         <Input id="med-val" placeholder="0.0" className="h-8 bg-white" type="number" 
-                            onKeyDown={e => { if(e.key==='Enter'){ const val = e.currentTarget.value; if(val) { addMeasurement(val, 'cm'); e.currentTarget.value=''; }}}}
+                            onKeyDown={e => {
+                                if(e.key==='Enter'){ 
+                                    const val = e.currentTarget.value; 
+                                    if(val) {
+                                        addMeasurement(val, 'cm'); 
+                                        e.currentTarget.value=''; 
+                                    }
+                                }
+                            }}
                         />
                         <span className="text-sm self-center">cm</span>
-                        <Button size="sm" variant="secondary" onClick={() => { const el = document.getElementById('med-val'); if(el.value) { addMeasurement(el.value, 'cm'); el.value = ''; }}}>Add</Button>
+                        <Button size="sm" variant="secondary" onClick={() => {
+                            const el = document.getElementById('med-val');
+                            if(el.value) {
+                                addMeasurement(el.value, 'cm');
+                                el.value = '';
+                            }
+                        }}>Add</Button>
                     </div>
                     <div className="flex flex-wrap gap-1">
                         {Object.entries(measurements).map(([key, m]) => (
                             <Badge key={key} variant="outline" className="bg-white gap-1 pr-1 items-center">
                                 {m.value} {m.unit}
-                                <span onClick={() => deleteMeasurement(key)} className="cursor-pointer hover:text-red-500 hover:bg-red-50 rounded-full p-0.5 flex items-center justify-center transition-colors"><X className="h-3 w-3" /></span>
+                                <span 
+                                    onClick={() => deleteMeasurement(key)}
+                                    className="cursor-pointer hover:text-red-500 hover:bg-red-50 rounded-full p-0.5 flex items-center justify-center transition-colors"
+                                    title="Remover"
+                                >
+                                    <X className="h-3 w-3" />
+                                </span>
                             </Badge>
                         ))}
                     </div>
                 </div>
+
                 <div className="flex-1 flex flex-col">
                     <Label className="mb-1">Texto</Label>
-                    <Textarea className="flex-1 resize-none font-mono text-base p-4 leading-relaxed shadow-sm" value={text} onChange={e => updateText(e.target.value)} placeholder="Escreva aqui..." />
+                    <Textarea 
+                        className="flex-1 resize-none font-mono text-base p-4 leading-relaxed shadow-sm" 
+                        value={text}
+                        onChange={e => updateText(e.target.value)}
+                        placeholder="Escreva aqui..."
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Dica: Use **negrito** e *itálico*.</p>
                 </div>
             </div>
+
             <Card className="flex flex-col min-h-0 border-l-4 border-l-primary/20">
                 <CardHeader className="py-2 px-3 bg-muted/20 border-b"><CardTitle className="text-xs">MODELOS</CardTitle></CardHeader>
                 <ScrollArea className="flex-1 bg-muted/5">
                     <div className="p-2 space-y-2">
                         {templates.length > 0 ? templates.map(t => (
-                            <div key={t.id} className="p-2 bg-card border rounded hover:border-primary cursor-pointer transition-all" onClick={() => addTemplate(t.text)}>
+                            <div key={t.id} className="p-2 bg-card border rounded hover:border-primary cursor-pointer transition-all"
+                                onClick={() => addTemplate(t.text)}>
                                 <div className="font-bold text-xs text-primary">{t.title}</div>
                                 <div className="text-[10px] text-muted-foreground line-clamp-2">{t.text}</div>
                             </div>
