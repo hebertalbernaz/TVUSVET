@@ -167,8 +167,7 @@ class DatabaseService {
   // ============= TEMPLATES E CONFIGS =============
 
   async initializeDefaultTemplates() {
-    // Lista simplificada para inicialização. 
-    // Em produção, você pode copiar a lista completa do arquivo antigo se desejar.
+    // Templates básicos iniciais
     const templates = [
       {
         id: this.generateId(),
@@ -177,8 +176,15 @@ class DatabaseService {
         title: 'Achado Normal',
         text: 'Fígado com dimensões, contornos, ecogenicidade e ecotextura preservados.',
         order: 1
+      },
+      {
+        id: this.generateId(),
+        organ: 'Baço',
+        category: 'normal',
+        title: 'Achado Normal',
+        text: 'Baço com dimensões, ecogenicidade e ecotextura preservados.',
+        order: 2
       }
-      // Adicione mais templates padrão aqui se necessário
     ];
     await set('templates', templates);
   }
@@ -216,7 +222,6 @@ class DatabaseService {
   // ============= REFERENCIAS =============
 
   async initializeDefaultReferenceValues() {
-     // Inicializa vazio para evitar erros, usuário pode adicionar depois
     await set('reference_values', []);
   }
 
