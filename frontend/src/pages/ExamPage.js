@@ -123,7 +123,7 @@ export default function ExamPage() {
     return bytes;
   };
 
-  // Calcula tamanho da imagem mantendo proporção
+  // Calcula tamanho da imagem mantendo proporção para DOCX
   const getImageSize = (base64, targetWidth = 250) => {
     return new Promise((resolve) => {
       const img = new Image();
@@ -136,7 +136,7 @@ export default function ExamPage() {
     });
   };
 
-  // Parser de Markdown Corrigido
+  // Parser de Markdown
   const parseText = (text) => {
     const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
     return parts.map(part => {
@@ -151,25 +151,28 @@ export default function ExamPage() {
     try {
       await saveExam();
       const settings = await db.getSettings();
-      
-      // Cabeçalho
       const headerChildren = [];
+
+      // 1. Cabeçalho com Imagem Proporcional (Largura fixa 600px ~ 16cm)
       if (settings.letterhead_path?.startsWith('data:image')) {
          const dims = await getImageSize(settings.letterhead_path, 600);
          const imgData = dataURLToUint8Array(settings.letterhead_path);
+         
          headerChildren.push(new Paragraph({
-             children: [new ImageRun({ data: imgData, transformation: { width: dims.width, height: dims.height } })],
+             children: [new ImageRun({ 
+                 data: imgData, 
+                 transformation: { width: dims.width, height: dims.height } 
+             })],
              alignment: AlignmentType.CENTER,
+             spacing: { after: 200 }
          }));
       } else {
-         // Texto fallback se não tiver imagem
          headerChildren.push(new Paragraph({
              children: [new TextRun({ text: settings.clinic_name || 'LAUDO', bold: true, size: 28 })],
              alignment: AlignmentType.CENTER,
          }));
       }
 
-      // Corpo
       const t = (txt) => translate(txt, reportLanguage);
       const docChildren = [
         new Paragraph({ text: `${t('Paciente')}: ${patient.name}`, heading: HeadingLevel.HEADING_2 }),
@@ -198,17 +201,23 @@ export default function ExamPage() {
         }
       });
 
-      // Imagens (Grid Limpo)
+      // 2. Imagens Limpas (Sem Borda, Sem Texto)
       if (examImages.length > 0) {
         docChildren.push(new Paragraph({ children: [new PageBreak()] }));
         
         const rows = [];
         for (let i = 0; i < examImages.length; i += 2) {
             const cells = [];
-            const addImg = async (img) => {
+            
+            const addImgCell = async (img) => {
                 const dims = await getImageSize(img.data, 250);
                 return new TableCell({
-                    borders: { top: {style: BorderStyle.NONE}, bottom: {style: BorderStyle.NONE}, left: {style: BorderStyle.NONE}, right: {style: BorderStyle.NONE} },
+                    borders: { 
+                        top: { style: BorderStyle.NONE, size: 0, color: "auto" }, 
+                        bottom: { style: BorderStyle.NONE, size: 0, color: "auto" }, 
+                        left: { style: BorderStyle.NONE, size: 0, color: "auto" }, 
+                        right: { style: BorderStyle.NONE, size: 0, color: "auto" } 
+                    },
                     children: [
                         new Paragraph({
                             alignment: AlignmentType.CENTER,
@@ -217,13 +226,13 @@ export default function ExamPage() {
                                 transformation: { width: dims.width, height: dims.height } 
                             })]
                         }),
-                        new Paragraph({ text: " " }) // Espaçamento
+                        new Paragraph({ text: " " }) // Espaço em branco
                     ],
                 });
             };
 
-            cells.push(await addImg(examImages[i]));
-            if (i+1 < examImages.length) cells.push(await addImg(examImages[i+1]));
+            cells.push(await addImgCell(examImages[i]));
+            if (i+1 < examImages.length) cells.push(await addImgCell(examImages[i+1]));
             
             rows.push(new TableRow({ children: cells }));
         }
@@ -231,7 +240,14 @@ export default function ExamPage() {
         docChildren.push(new Table({ 
             rows, 
             width: { size: 100, type: WidthType.PERCENTAGE },
-            borders: { top: {style: BorderStyle.NONE}, bottom: {style: BorderStyle.NONE}, left: {style: BorderStyle.NONE}, right: {style: BorderStyle.NONE}, insideHorizontal: {style: BorderStyle.NONE}, insideVertical: {style: BorderStyle.NONE} }
+            borders: { 
+                top: { style: BorderStyle.NONE, size: 0, color: "auto" },
+                bottom: { style: BorderStyle.NONE, size: 0, color: "auto" },
+                left: { style: BorderStyle.NONE, size: 0, color: "auto" },
+                right: { style: BorderStyle.NONE, size: 0, color: "auto" },
+                insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "auto" },
+                insideVertical: { style: BorderStyle.NONE, size: 0, color: "auto" }
+            }
         }));
       }
 
@@ -256,6 +272,10 @@ export default function ExamPage() {
     }
   };
 
+  const handlePrintPdf = () => {
+    window.print();
+  };
+
   if (!exam || !patient) return <div className="flex h-screen items-center justify-center">Carregando...</div>;
 
   const currentOrgan = organsData[currentOrganIndex];
@@ -272,14 +292,28 @@ export default function ExamPage() {
             <h1 className="font-bold text-lg leading-tight">{patient.name}</h1>
             <div className="text-xs text-muted-foreground flex gap-2 items-center">
                <span>{patient.species}</span>
+               <span>•</span>
                <Input className="h-5 w-16 text-xs px-1" placeholder="Peso" value={examWeight} onChange={e => setExamWeight(e.target.value)} /> kg
             </div>
           </div>
         </div>
+        {/* BOTÃO DE IMPRIMIR (PDF) */}
         <div className="flex gap-2">
-           <Button variant="outline" size="sm" onClick={() => window.print()}><Printer className="h-4 w-4 mr-2"/> Imprimir PDF</Button>
-           <Button variant="outline" size="sm" onClick={saveExam}><Save className="h-4 w-4 mr-2"/> Salvar</Button>
-           <Button size="sm" onClick={exportToDocx}><Download className="h-4 w-4 mr-2"/> DOCX</Button>
+           <Select value={reportLanguage} onValueChange={setReportLanguage}>
+            <SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {getAvailableLanguages().map(l => <SelectItem key={l.code} value={l.code}>{l.flag} {l.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+           <Button variant="outline" size="sm" onClick={handlePrintPdf}>
+             <Printer className="h-4 w-4 mr-2"/> PDF
+           </Button>
+           <Button variant="outline" size="sm" onClick={saveExam}>
+             <Save className="h-4 w-4 mr-2"/> Salvar
+           </Button>
+           <Button size="sm" onClick={exportToDocx}>
+             <Download className="h-4 w-4 mr-2"/> DOCX
+           </Button>
         </div>
       </div>
 
@@ -312,64 +346,11 @@ export default function ExamPage() {
         {/* Coluna 2: Editor (Meio - 70%) */}
         <div className="col-span-8 flex flex-col min-h-0 bg-background p-4 gap-4">
           {currentOrgan ? (
-            <>
-               <h2 className="text-xl font-bold text-primary flex items-center gap-2">
-                 {currentOrgan.organ_name}
-               </h2>
-               
-               <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
-                  {/* Área de Texto e Medidas */}
-                  <div className="flex flex-col gap-3">
-                     <div className="bg-muted/20 p-3 rounded border">
-                        <div className="flex gap-2 mb-2">
-                           <Input id="med-val" placeholder="0.0" className="h-8 bg-white" type="number" 
-                             onKeyDown={e => {if(e.key==='Enter'){ const val = e.currentTarget.value; updateOrganData(currentOrganIndex, 'measurements', {...currentOrgan.measurements, [`m_${Date.now()}`]: {value: val, unit: 'cm'}}); e.currentTarget.value=''; }}}
-                           />
-                           <span className="text-sm self-center">cm</span>
-                           <Button size="sm" variant="secondary" onClick={() => {
-                              const el = document.getElementById('med-val');
-                              if(el.value) {
-                                 updateOrganData(currentOrganIndex, 'measurements', {...currentOrgan.measurements, [`m_${Date.now()}`]: {value: el.value, unit: 'cm'}});
-                                 el.value = '';
-                              }
-                           }}>Add</Button>
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                           {Object.values(currentOrgan.measurements || {}).map((m, i) => (
-                              <Badge key={i} variant="outline" className="bg-white">{m.value} {m.unit}</Badge>
-                           ))}
-                        </div>
-                     </div>
-
-                     <div className="flex-1 flex flex-col">
-                        <Label className="mb-1">Texto</Label>
-                        <Textarea 
-                           className="flex-1 resize-none font-mono text-base p-4 leading-relaxed shadow-sm" 
-                           value={currentOrgan.report_text}
-                           onChange={e => updateOrganData(currentOrganIndex, 'report_text', e.target.value)}
-                           placeholder="Escreva aqui..."
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">Dica: Use **negrito** e *itálico*.</p>
-                     </div>
-                  </div>
-
-                  {/* Área de Templates */}
-                  <Card className="flex flex-col min-h-0 border-l-4 border-l-primary/20">
-                     <CardHeader className="py-2 px-3 bg-muted/20 border-b"><CardTitle className="text-xs">MODELOS</CardTitle></CardHeader>
-                     <ScrollArea className="flex-1 bg-muted/5">
-                        <div className="p-2 space-y-2">
-                           {organTemplates.length > 0 ? organTemplates.map(t => (
-                              <div key={t.id} className="p-2 bg-card border rounded hover:border-primary cursor-pointer transition-all"
-                                   onClick={() => updateOrganData(currentOrganIndex, 'report_text', (currentOrgan.report_text || '') + (currentOrgan.report_text ? '\n' : '') + t.text)}>
-                                 <div className="font-bold text-xs text-primary">{t.title}</div>
-                                 <div className="text-[10px] text-muted-foreground line-clamp-2">{t.text}</div>
-                              </div>
-                           )) : <div className="p-4 text-xs text-center text-muted-foreground">Sem modelos cadastrados.</div>}
-                        </div>
-                     </ScrollArea>
-                  </Card>
-               </div>
-            </>
+            <OrganEditor 
+                organ={currentOrgan} 
+                templates={organTemplates} 
+                onChange={(field, value) => updateOrganData(currentOrganIndex, field, value)} 
+            />
           ) : <div className="flex items-center justify-center h-full text-muted-foreground">Selecione uma estrutura ao lado</div>}
         </div>
 
@@ -397,21 +378,143 @@ export default function ExamPage() {
 
       </div>
       
-      {/* Área de Impressão (Invisível) */}
+      {/* Área de Impressão (Invisível na tela) */}
       <div id="printable-report" className="hidden print:block p-8 font-serif">
-         <h1 className="text-2xl font-bold text-center mb-4">LAUDO DE {patient.name.toUpperCase()}</h1>
+         <div className="text-center mb-6 border-b pb-4">
+            <h1 className="text-2xl font-bold uppercase">Laudo Veterinário</h1>
+            <p>{patient.name} - {patient.breed}</p>
+         </div>
+         
          {organsData.map((o, i) => o.report_text && (
             <div key={i} className="mb-4">
-               <h3 className="font-bold text-lg">{o.organ_name}</h3>
+               <h3 className="font-bold text-lg border-b mb-1">{o.organ_name}</h3>
                <p className="whitespace-pre-wrap text-justify">{o.report_text}</p>
             </div>
          ))}
+         
          {examImages.length > 0 && (
-            <div className="mt-6 grid grid-cols-2 gap-4">
-               {examImages.map(img => <img key={img.id} src={img.data} className="w-full object-contain h-48"/>)}
+            <div className="mt-6 page-break-before">
+               <div className="grid grid-cols-2 gap-4">
+                  {examImages.map(img => <img key={img.id} src={img.data} className="w-full object-contain h-48 border-0"/>)}
+               </div>
             </div>
          )}
       </div>
     </div>
+  );
+}
+
+// Componente Editor Refatorado
+function OrganEditor({ organ, templates, onChange }) {
+  const [text, setText] = useState(organ.report_text || '');
+  const [measurements, setMeasurements] = useState(organ.measurements || {});
+
+  useEffect(() => {
+    setText(organ.report_text || '');
+    setMeasurements(organ.measurements || {});
+  }, [organ.organ_name]);
+
+  const updateText = (val) => {
+    setText(val);
+    onChange('report_text', val);
+  };
+
+  const addTemplate = (templateText) => {
+    const newText = text ? text + '\n' + templateText : templateText;
+    updateText(newText);
+  };
+
+  const addMeasurement = (val, unit) => {
+    const id = `m_${Date.now()}`;
+    const newM = { ...measurements, [id]: { value: val, unit } };
+    setMeasurements(newM);
+    onChange('measurements', newM);
+  };
+
+  // Função para deletar medida (Adicionada a seu pedido)
+  const deleteMeasurement = (key) => {
+    const newM = { ...measurements };
+    delete newM[key];
+    setMeasurements(newM);
+    onChange('measurements', newM);
+  };
+
+  return (
+    <>
+        <h2 className="text-2xl font-bold text-primary flex items-center gap-2">
+            {organ.organ_name}
+        </h2>
+               
+        <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
+            {/* Área de Texto e Medidas */}
+            <div className="flex flex-col gap-3">
+                <div className="bg-muted/20 p-3 rounded border">
+                <div className="flex gap-2 mb-2">
+                    <Input id="med-val" placeholder="0.0" className="h-8 bg-white" type="number" 
+                        onKeyDown={e => {
+                            if(e.key==='Enter'){ 
+                                const val = e.currentTarget.value; 
+                                if(val) {
+                                    addMeasurement(val, 'cm'); 
+                                    e.currentTarget.value=''; 
+                                }
+                            }
+                        }}
+                    />
+                    <span className="text-sm self-center">cm</span>
+                    <Button size="sm" variant="secondary" onClick={() => {
+                        const el = document.getElementById('med-val');
+                        if(el.value) {
+                            addMeasurement(el.value, 'cm');
+                            el.value = '';
+                        }
+                    }}>Add</Button>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                    {/* Renderização das Medidas com botão de Excluir (X) */}
+                    {Object.entries(measurements).map(([key, m]) => (
+                        <Badge key={key} variant="outline" className="bg-white gap-1 pr-1">
+                            {m.value} {m.unit}
+                            <span 
+                                onClick={() => deleteMeasurement(key)}
+                                className="cursor-pointer hover:text-red-500 rounded-full p-0.5"
+                                title="Remover"
+                            >
+                                <X className="h-3 w-3" />
+                            </span>
+                        </Badge>
+                    ))}
+                </div>
+                </div>
+
+                <div className="flex-1 flex flex-col">
+                <Label className="mb-1">Texto</Label>
+                <Textarea 
+                    className="flex-1 resize-none font-mono text-base p-4 leading-relaxed shadow-sm" 
+                    value={text}
+                    onChange={e => updateText(e.target.value)}
+                    placeholder="Escreva aqui..."
+                />
+                <p className="text-xs text-muted-foreground mt-1">Dica: Use **negrito** e *itálico*.</p>
+                </div>
+            </div>
+
+            {/* Área de Templates */}
+            <Card className="flex flex-col min-h-0 border-l-4 border-l-primary/20">
+                <CardHeader className="py-2 px-3 bg-muted/20 border-b"><CardTitle className="text-xs">MODELOS</CardTitle></CardHeader>
+                <ScrollArea className="flex-1 bg-muted/5">
+                <div className="p-2 space-y-2">
+                    {templates.length > 0 ? templates.map(t => (
+                        <div key={t.id} className="p-2 bg-card border rounded hover:border-primary cursor-pointer transition-all"
+                            onClick={() => addTemplate(t.text)}>
+                            <div className="font-bold text-xs text-primary">{t.title}</div>
+                            <div className="text-[10px] text-muted-foreground line-clamp-2">{t.text}</div>
+                        </div>
+                    )) : <div className="p-4 text-xs text-center text-muted-foreground">Sem modelos cadastrados.</div>}
+                </div>
+                </ScrollArea>
+            </Card>
+        </div>
+    </>
   );
 }
