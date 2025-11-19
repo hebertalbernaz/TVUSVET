@@ -5,7 +5,7 @@ import '@/App.css';
 import { db } from '@/services/database';
 import HomePage from '@/pages/HomePage';
 import SettingsPage from '@/pages/SettingsPage';
-import ExamPage from '@/pages/ExamPage';
+import ExamPageV2 from '@/pages/ExamPageV2';
 import { Toaster } from '@/components/ui/sonner';
 
 function App() {
@@ -43,7 +43,7 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<HomePage />} />
-            <Route path="/exam/:examId" element={<ExamPage />} />
+            <Route path="/exam/:examId" element={<ExamPageV2 />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </BrowserRouter>
