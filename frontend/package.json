@@ -4,7 +4,7 @@
   "main": "public/electron.js",
   "homepage": "./",
   "description": "Sistema Multi-Modal de Diagnóstico Veterinário",
-  "author": "TVUSVET",
+  "author": "Hebert Albernaz Junior",
   "private": true,
   "dependencies": {
     "@capacitor-community/sqlite": "^7.0.1",
@@ -119,7 +119,7 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "public/favicon.ico"
+      "icon": "public/icon-512.png"
     },
     "nsis": {
       "oneClick": false,
