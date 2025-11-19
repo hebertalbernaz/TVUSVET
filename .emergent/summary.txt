@@ -1,0 +1,84 @@
+<analysis>
+The AI engineer successfully built a veterinary abdominal ultrasound application from initial requirements, moving from a React/FastAPI/MongoDB web app to a PWA. Key features implemented include patient/exam management, organ-specific alteration pre-selection, measurement input, image attachment, and a customizable report generator (DOCX export). The AI also implemented a semi-annual license system with 200 random codes. A significant pivot occurred when the user requested 100% offline functionality, leading to a plan to migrate from the client-server architecture to a React frontend with local SQLite for data storage, moving all backend logic to the frontend. This refactoring is currently in progress, breaking  into modular components. The immediate task is to finalize this offline migration and then proceed with creating a Windows executable for testing.
+</analysis>
+
+<product_requirements>
+The user requested a veterinary abdominal ultrasound application, TVUSVET Laudos, similar to Yoovet but with specific features:
+1.  **Organ-specific Pre-selection**: For each abdominal organ (e.g., liver, spleen), a pre-defined list of common alterations for quick selection.
+2.  **Measurements & Comparison**: Input manual measurements (cm, mm) with an intelligent graphical alert system for changes (not in final report). User clarified: reference values based on animal weight (small, medium, large) and ability to add/edit these standards.
+3.  **Image Attachment**: Attach images (from ultrasound or local files) to the exam, to be included in the exported report (6 images per page). Needs a preview system.
+4.  **Customizable Final Report**:
+    *   Editable text boxes with pre-programmed, selectable, savable text templates (user clarified: start with common texts, allow adding/editing).
+    *   Specific organ order in the report: Stomach, Liver, Spleen, Left Kidney, Right Kidney, Urinary Bladder, Left Adrenal, Right Adrenal, Duodenum, Jejunum, Colon, Cecum, Ileum, Lymph Nodes, and Reproductive Organs (differentiate male with testes/prostate, female with uterus/ovaries). Checkbox for castrated patient (adds term to report). User clarified: for castrated male, prostate should still be evaluated.
+    *   Ability to edit, reorganize, or personalize final text before saving/exporting (PDF, Word).
+    *   Pre-configured page layout for letterhead (user clarified: page to attach .docx/.pdf with logo/header, and select text area for preview).
+    *   Clean, professional layout for communication.
+5.  **Interface**: Simple, responsive, intuitive (tablet, mobile, desktop). User requested a more simplified and beautiful interface, and to rename the app to TVUSVET Laudos.
+6.  **Patient History**: Save exams per patient and maintain history.
+7.  **Offline Database**: Encrypted offline database for reports and images (user later specified 100% offline, moving from MongoDB to SQLite).
+8.  **Export**: Option to export to  format.
+9.  **Animal Types**: Initially for dogs and cats.
+10. **Edit Patient Data**: Button to edit animal data in case of errors.
+11. **Weight in Exam**: Include animal's weight during the exam for tracking changes over time.
+12. **License System**: Semi-annual license key system (200 random codes, then open license). Later requested to be disabled for the 100% offline version.
+13. **Standalone Applications**: Initially requested Windows executable and Android APK. Later clarified for a 100% offline Android APK, with AI preparing the code for Android Studio finalization, and also a Windows executable.
+
+</product_requirements>
+
+<key_technical_concepts>
+
+-   **Frontend**: React.js, Shadcn UI components, Tailwind CSS for styling.
+-   **Backend**: FastAPI (Python), uvicorn for serving. (Being deprecated for 100% offline)
+-   **Database**: MongoDB (used initially, being replaced by SQLite for offline mode).
+-   **Deployment**: Kubernetes container environment, Supervisor for service control.
+-   **PWA**: Progressive Web App for web/mobile installability.
+-   **Capacitor**: Framework for building cross-platform native apps with web technologies (for Android APK).
+-   **python-docx**: Library for generating Word documents.
+-   **UUIDs**: Used for MongoDB object IDs for JSON serialization compatibility.
+-   **ISO Strings**: Used for DateTime handling in MongoDB.
+
+</key_technical_concepts>
+
+<code_architecture>
+The application initially followed a standard full-stack architecture: React frontend, FastAPI backend, and MongoDB database. It is currently undergoing a significant refactoring to transition from this client-server model to a 100% offline application, moving all logic to the React frontend with a local SQLite database.
+
+
+
+-   : Initially contained FastAPI routes for patient, exam, template, and license management. It was modified several times to fix bugs (e.g.,  validation) and add features (e.g., license endpoints, handling prostate for castrated males). This file's logic is being migrated to the frontend for the 100% offline version.
+-   : The central React component. It started as a monolithic component handling all routing, state, and UI. It has undergone extensive modifications to add new features (patient edit, exam weight, image section, letterhead settings, license modal) and bug fixes (organ text replication, measurements in DOCX). It is currently being refactored and simplified to delegate responsibilities to new, smaller components and pages.
+-   , : Created to enable PWA functionality, allowing the web app to be installed like a native app and function offline (for assets).
+-   : Modified to include references to the PWA manifest and service worker.
+-   : A new file created to encapsulate SQLite database interactions for the 100% offline version, replacing the FastAPI/MongoDB backend.
+-   , , , , : These are new components being created as part of the refactoring to modularize the UI and logic from .
+-   , : New page components being created to structure the main application views after  refactoring.
+-   : A markdown file generated for the user, containing instructions on how to finalize the Android project in Android Studio.
+
+</code_architecture>
+
+<pending_tasks>
+-   Complete the refactoring of the frontend to use separate components and pages (, , , etc.).
+-   Fully implement the SQLite database service () to handle all data persistence locally, replacing the online FastAPI/MongoDB backend.
+-   Migrate all backend logic (patient, exam, template, image management, license checks) to the frontend using the local SQLite database.
+-   Implement editing of default texts per organ and reference values within the settings.
+-   Implement the preview functionality for the attached letterhead.
+-   Disable the license system as per the user's request for the 100% offline version.
+-   After the app is fully offline and refactored, finalize the Windows executable for testing.
+</pending_tasks>
+
+<current_work>
+Immediately before this summary request, the AI engineer was engaged in a major refactoring effort to transform the application into a 100% offline experience, as requested by the user. This involves:
+1.  **Replacing the online backend**: The FastAPI backend and MongoDB database are being removed.
+2.  **Migrating to local SQLite**: All data persistence and business logic are being moved to the React frontend, using a newly created  service for SQLite.
+3.  **Component refactoring**: The monolithic  file is being broken down into smaller, more manageable components and pages for better organization and future maintainability. New files like , , , , , , , and  have been or are being created.
+4.  **Implementing new UI features**: Work is underway to add features such as editing default texts per organ, editing reference values, and displaying a preview of the letterhead.
+5.  **Disabling licenses**: The previously implemented license system needs to be removed for the offline version.
+
+The AI engineer has just simplified  to use the new page components and is preparing to continue with the next steps of this comprehensive refactoring, with the ultimate goal of creating a Windows executable for testing.
+</current_work>
+
+<optional_next_step>
+Continue finalizing the app's refactoring to be 100% offline and then create the Windows executable.
+</optional_next_step>
+<direct_quote>
+Finalize esse app para criar um arquivo executável em windows para testes.
+</direct_quote>
