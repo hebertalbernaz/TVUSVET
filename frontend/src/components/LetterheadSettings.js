@@ -8,12 +8,13 @@ import { toast } from 'sonner';
 export function LetterheadSettings({ settings, onSave }) {
   const [uploading, setUploading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const fileInputRef = useRef(null); // Referência direta ao input
+  const fileInputRef = useRef(null); // Referência correta
 
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
+    // Aceita imagens E documentos
     const validTypes = [
       'image/png', 'image/jpeg', 'image/jpg', 
       'application/pdf', 
@@ -56,7 +57,7 @@ export function LetterheadSettings({ settings, onSave }) {
     <Card>
       <CardHeader>
         <CardTitle>Timbrado do Laudo</CardTitle>
-        <CardDescription>Cabeçalho para DOCX (Imagens funcionam melhor)</CardDescription>
+        <CardDescription>Cabeçalho para DOCX</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
@@ -75,7 +76,7 @@ export function LetterheadSettings({ settings, onSave }) {
               variant="outline"
               className="flex-1"
               disabled={uploading}
-              onClick={() => fileInputRef.current.click()} // Clique garantido
+              onClick={() => fileInputRef.current.click()} // Ação direta
             >
               <Upload className="mr-2 h-4 w-4" />
               {uploading ? 'Enviando...' : 'Selecionar Arquivo'}

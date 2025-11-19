@@ -18,7 +18,6 @@ import {
 import { getStructuresForExam, getExamTypeName } from '@/lib/exam_types';
 import { translate, getAvailableLanguages } from '@/services/translation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function ExamPage() {
   const { examId } = useParams();
@@ -153,7 +152,7 @@ export default function ExamPage() {
       const settings = await db.getSettings();
       const headerChildren = [];
 
-      // 1. Cabeçalho com Imagem Proporcional (Largura fixa 600px ~ 16cm)
+      // 1. Cabeçalho com Imagem Proporcional
       if (settings.letterhead_path?.startsWith('data:image')) {
          const dims = await getImageSize(settings.letterhead_path, 600);
          const imgData = dataURLToUint8Array(settings.letterhead_path);
@@ -167,6 +166,7 @@ export default function ExamPage() {
              spacing: { after: 200 }
          }));
       } else {
+         // Texto fallback
          headerChildren.push(new Paragraph({
              children: [new TextRun({ text: settings.clinic_name || 'LAUDO', bold: true, size: 28 })],
              alignment: AlignmentType.CENTER,
@@ -208,10 +208,10 @@ export default function ExamPage() {
         const rows = [];
         for (let i = 0; i < examImages.length; i += 2) {
             const cells = [];
-            
             const addImgCell = async (img) => {
                 const dims = await getImageSize(img.data, 250);
                 return new TableCell({
+                    // Borda invisível na célula
                     borders: { 
                         top: { style: BorderStyle.NONE, size: 0, color: "auto" }, 
                         bottom: { style: BorderStyle.NONE, size: 0, color: "auto" }, 
@@ -226,7 +226,7 @@ export default function ExamPage() {
                                 transformation: { width: dims.width, height: dims.height } 
                             })]
                         }),
-                        new Paragraph({ text: " " }) // Espaço em branco
+                        new Paragraph({ text: " " }) 
                     ],
                 });
             };
@@ -240,6 +240,7 @@ export default function ExamPage() {
         docChildren.push(new Table({ 
             rows, 
             width: { size: 100, type: WidthType.PERCENTAGE },
+            // Borda invisível na tabela
             borders: { 
                 top: { style: BorderStyle.NONE, size: 0, color: "auto" },
                 bottom: { style: BorderStyle.NONE, size: 0, color: "auto" },
@@ -268,7 +269,7 @@ export default function ExamPage() {
       toast.success('Gerado!');
     } catch (e) {
       console.error(e);
-      toast.error('Erro ao gerar. Verifique as imagens.');
+      toast.error('Erro ao gerar.');
     }
   };
 
@@ -297,7 +298,6 @@ export default function ExamPage() {
             </div>
           </div>
         </div>
-        {/* BOTÃO DE IMPRIMIR (PDF) */}
         <div className="flex gap-2">
            <Select value={reportLanguage} onValueChange={setReportLanguage}>
             <SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger>
@@ -305,6 +305,7 @@ export default function ExamPage() {
               {getAvailableLanguages().map(l => <SelectItem key={l.code} value={l.code}>{l.flag} {l.name}</SelectItem>)}
             </SelectContent>
           </Select>
+           {/* BOTÃO PDF AQUI */}
            <Button variant="outline" size="sm" onClick={handlePrintPdf}>
              <Printer className="h-4 w-4 mr-2"/> PDF
            </Button>
@@ -317,7 +318,7 @@ export default function ExamPage() {
         </div>
       </div>
 
-      {/* Layout de 3 Colunas Fixo */}
+      {/* Layout de 3 Colunas Fixo (Grade) */}
       <div className="flex-1 grid grid-cols-12 min-h-0">
         
         {/* Coluna 1: Imagens (Esquerda - 20%) */}
@@ -378,7 +379,7 @@ export default function ExamPage() {
 
       </div>
       
-      {/* Área de Impressão (Invisível na tela) */}
+      {/* Área de Impressão (Visível apenas no PDF) */}
       <div id="printable-report" className="hidden print:block p-8 font-serif">
          <div className="text-center mb-6 border-b pb-4">
             <h1 className="text-2xl font-bold uppercase">Laudo Veterinário</h1>
@@ -404,7 +405,6 @@ export default function ExamPage() {
   );
 }
 
-// Componente Editor Refatorado
 function OrganEditor({ organ, templates, onChange }) {
   const [text, setText] = useState(organ.report_text || '');
   const [measurements, setMeasurements] = useState(organ.measurements || {});
@@ -431,7 +431,7 @@ function OrganEditor({ organ, templates, onChange }) {
     onChange('measurements', newM);
   };
 
-  // Função para deletar medida (Adicionada a seu pedido)
+  // Função para deletar medida
   const deleteMeasurement = (key) => {
     const newM = { ...measurements };
     delete newM[key];
@@ -446,72 +446,69 @@ function OrganEditor({ organ, templates, onChange }) {
         </h2>
                
         <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
-            {/* Área de Texto e Medidas */}
             <div className="flex flex-col gap-3">
                 <div className="bg-muted/20 p-3 rounded border">
-                <div className="flex gap-2 mb-2">
-                    <Input id="med-val" placeholder="0.0" className="h-8 bg-white" type="number" 
-                        onKeyDown={e => {
-                            if(e.key==='Enter'){ 
-                                const val = e.currentTarget.value; 
-                                if(val) {
-                                    addMeasurement(val, 'cm'); 
-                                    e.currentTarget.value=''; 
+                    <div className="flex gap-2 mb-2">
+                        <Input id="med-val" placeholder="0.0" className="h-8 bg-white" type="number" 
+                            onKeyDown={e => {
+                                if(e.key==='Enter'){ 
+                                    const val = e.currentTarget.value; 
+                                    if(val) {
+                                        addMeasurement(val, 'cm'); 
+                                        e.currentTarget.value=''; 
+                                    }
                                 }
+                            }}
+                        />
+                        <span className="text-sm self-center">cm</span>
+                        <Button size="sm" variant="secondary" onClick={() => {
+                            const el = document.getElementById('med-val');
+                            if(el.value) {
+                                addMeasurement(el.value, 'cm');
+                                el.value = '';
                             }
-                        }}
-                    />
-                    <span className="text-sm self-center">cm</span>
-                    <Button size="sm" variant="secondary" onClick={() => {
-                        const el = document.getElementById('med-val');
-                        if(el.value) {
-                            addMeasurement(el.value, 'cm');
-                            el.value = '';
-                        }
-                    }}>Add</Button>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                    {/* Renderização das Medidas com botão de Excluir (X) */}
-                    {Object.entries(measurements).map(([key, m]) => (
-                        <Badge key={key} variant="outline" className="bg-white gap-1 pr-1">
-                            {m.value} {m.unit}
-                            <span 
-                                onClick={() => deleteMeasurement(key)}
-                                className="cursor-pointer hover:text-red-500 rounded-full p-0.5"
-                                title="Remover"
-                            >
-                                <X className="h-3 w-3" />
-                            </span>
-                        </Badge>
-                    ))}
-                </div>
+                        }}>Add</Button>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                        {Object.entries(measurements).map(([key, m]) => (
+                            <Badge key={key} variant="outline" className="bg-white gap-1 pr-1 items-center">
+                                {m.value} {m.unit}
+                                <span 
+                                    onClick={() => deleteMeasurement(key)}
+                                    className="cursor-pointer hover:text-red-500 hover:bg-red-50 rounded-full p-0.5 flex items-center justify-center transition-colors"
+                                    title="Remover"
+                                >
+                                    <X className="h-3 w-3" />
+                                </span>
+                            </Badge>
+                        ))}
+                    </div>
                 </div>
 
                 <div className="flex-1 flex flex-col">
-                <Label className="mb-1">Texto</Label>
-                <Textarea 
-                    className="flex-1 resize-none font-mono text-base p-4 leading-relaxed shadow-sm" 
-                    value={text}
-                    onChange={e => updateText(e.target.value)}
-                    placeholder="Escreva aqui..."
-                />
-                <p className="text-xs text-muted-foreground mt-1">Dica: Use **negrito** e *itálico*.</p>
+                    <Label className="mb-1">Texto</Label>
+                    <Textarea 
+                        className="flex-1 resize-none font-mono text-base p-4 leading-relaxed shadow-sm" 
+                        value={text}
+                        onChange={e => updateText(e.target.value)}
+                        placeholder="Escreva aqui..."
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Dica: Use **negrito** e *itálico*.</p>
                 </div>
             </div>
 
-            {/* Área de Templates */}
             <Card className="flex flex-col min-h-0 border-l-4 border-l-primary/20">
                 <CardHeader className="py-2 px-3 bg-muted/20 border-b"><CardTitle className="text-xs">MODELOS</CardTitle></CardHeader>
                 <ScrollArea className="flex-1 bg-muted/5">
-                <div className="p-2 space-y-2">
-                    {templates.length > 0 ? templates.map(t => (
-                        <div key={t.id} className="p-2 bg-card border rounded hover:border-primary cursor-pointer transition-all"
-                            onClick={() => addTemplate(t.text)}>
-                            <div className="font-bold text-xs text-primary">{t.title}</div>
-                            <div className="text-[10px] text-muted-foreground line-clamp-2">{t.text}</div>
-                        </div>
-                    )) : <div className="p-4 text-xs text-center text-muted-foreground">Sem modelos cadastrados.</div>}
-                </div>
+                    <div className="p-2 space-y-2">
+                        {templates.length > 0 ? templates.map(t => (
+                            <div key={t.id} className="p-2 bg-card border rounded hover:border-primary cursor-pointer transition-all"
+                                onClick={() => addTemplate(t.text)}>
+                                <div className="font-bold text-xs text-primary">{t.title}</div>
+                                <div className="text-[10px] text-muted-foreground line-clamp-2">{t.text}</div>
+                            </div>
+                        )) : <div className="p-4 text-xs text-center text-muted-foreground">Sem modelos cadastrados.</div>}
+                    </div>
                 </ScrollArea>
             </Card>
         </div>
