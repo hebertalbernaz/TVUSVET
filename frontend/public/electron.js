@@ -1,51 +1,47 @@
 const path = require('path');
 const { app, BrowserWindow } = require('electron');
-const isDev = require('electron-is-dev');
+
+// Verificação manual de ambiente de desenvolvimento
+const isDev = !app.isPackaged;
 
 function createWindow() {
-  // Cria a janela do navegador.
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
     title: "TVUSVET Laudos",
-    icon: path.join(__dirname, 'favicon.ico'), // Usa o ícone existente
+    // O ícone pode falhar em dev se não existir, mas não quebra o app
+    icon: path.join(__dirname, 'favicon.ico'), 
     webPreferences: {
       nodeIntegration: true,
-      contextIsolation: false, // Necessário para algumas interações locais simples
-      webSecurity: false // Permite carregar imagens locais (file://) se necessário
+      contextIsolation: false,
+      webSecurity: false
     },
   });
 
-  // Remove a barra de menu padrão (File, Edit, etc) para parecer mais nativo
   win.setMenuBarVisibility(false);
 
-  // Em desenvolvimento, carrega do localhost. Em produção, carrega o arquivo index.html compilado.
-  // Note que em produção, o arquivo estará na mesma pasta (build), então usamos __dirname
+  // Em dev carrega o localhost, em prod carrega o arquivo local
   win.loadURL(
     isDev
       ? 'http://localhost:3000'
-      : `file://${path.join(__dirname, 'index.html')}`
+      : `file://${path.join(__dirname, '../build/index.html')}`
   );
-
-  // Abre o DevTools apenas em modo de desenvolvimento
+  
   if (isDev) {
     win.webContents.openDevTools({ mode: 'detach' });
   }
 }
 
-// Configuração necessária para evitar erros de caminho em produção
-app.whenReady().then(() => {
-  createWindow();
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
-  });
-});
+app.whenReady().then(createWindow);
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
+  }
+});
+
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
   }
 });

@@ -12,7 +12,6 @@ class DatabaseService {
   async init() {
     if (this.initialized) return;
     
-    // Inicializar arrays vazios se não existirem
     const patients = await get('patients');
     if (!patients) await set('patients', []);
 
@@ -80,7 +79,6 @@ class DatabaseService {
     const newPatients = patients.filter(p => p.id !== id);
     await set('patients', newPatients);
     
-    // Deletar exames do paciente
     const exams = await this.getExams();
     const newExams = exams.filter(e => e.patient_id !== id);
     await set('exams', newExams);
@@ -143,11 +141,10 @@ class DatabaseService {
     const image = {
       id: imageId,
       filename: imageData.filename,
-      data: imageData.data, // Base64
+      data: imageData.data, 
       organ: imageData.organ || null
     };
     
-    // Garantir que images é um array
     exam.images = Array.isArray(exam.images) ? exam.images : [];
     exam.images.push(image);
     await this.updateExam(examId, exam);
@@ -164,27 +161,14 @@ class DatabaseService {
     }
   }
 
-  // ============= TEMPLATES E CONFIGS =============
+  // ============= TEMPLATES =============
 
   async initializeDefaultTemplates() {
-    // Templates básicos iniciais
     const templates = [
-      {
-        id: this.generateId(),
-        organ: 'Fígado',
-        category: 'normal',
-        title: 'Achado Normal',
-        text: 'Fígado com dimensões, contornos, ecogenicidade e ecotextura preservados.',
-        order: 1
-      },
-      {
-        id: this.generateId(),
-        organ: 'Baço',
-        category: 'normal',
-        title: 'Achado Normal',
-        text: 'Baço com dimensões, ecogenicidade e ecotextura preservados.',
-        order: 2
-      }
+      { id: this.generateId(), organ: 'Fígado', category: 'normal', title: 'Achado Normal', text: 'Fígado com dimensões, contornos, ecogenicidade e ecotextura preservados.', order: 1 },
+      { id: this.generateId(), organ: 'Baço', category: 'normal', title: 'Achado Normal', text: 'Baço com dimensões, ecogenicidade e ecotextura preservados.', order: 2 },
+      { id: this.generateId(), organ: 'Rins', category: 'normal', title: 'Achado Normal', text: 'Rins simétricos, com arquitetura preservada e relação corticomedular mantida.', order: 3 },
+      { id: this.generateId(), organ: 'Bexiga', category: 'normal', title: 'Achado Normal', text: 'Bexiga com parede fina e regular, conteúdo anecóico.', order: 4 }
     ];
     await set('templates', templates);
   }

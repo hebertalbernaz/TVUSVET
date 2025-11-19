@@ -5,16 +5,20 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Upload, Save, Download, X, Image as ImageIcon, Check, ArrowLeft } from 'lucide-react';
+import { Upload, Save, Download, X, Check, ArrowLeft, Trash2, Plus, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import { db } from '@/services/database';
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, ImageRun, Header, SectionType, PageBreak, Table, TableRow, TableCell, WidthType } from 'docx';
+import { 
+  Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, 
+  ImageRun, Header, SectionType, PageBreak, Table, TableRow, TableCell, 
+  WidthType, BorderStyle 
+} from 'docx';
 import { getStructuresForExam, getExamTypeName } from '@/lib/exam_types';
 import { translate, getAvailableLanguages } from '@/services/translation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function ExamPage() {
   const { examId } = useParams();
@@ -31,18 +35,12 @@ export default function ExamPage() {
   const [structureDefinitions, setStructureDefinitions] = useState([]);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    loadExamData();
-  }, [examId]);
+  useEffect(() => { loadExamData(); }, [examId]);
 
   const loadExamData = async () => {
     try {
       const examRes = await db.getExam(examId);
-      if (!examRes) {
-        toast.error('Exame não encontrado');
-        navigate('/');
-        return;
-      }
+      if (!examRes) return navigate('/');
       setExam(examRes);
       setExamWeight(examRes.exam_weight || '');
       setExamImages(examRes.images || []);
@@ -56,30 +54,21 @@ export default function ExamPage() {
       const refValuesRes = await db.getReferenceValues();
       setReferenceValues(refValuesRes);
 
-      // RECALCULAR ESTRUTURAS SEMPRE para garantir sincronia
       const examType = examRes.exam_type || 'ultrasound_abd';
       const allStructures = getStructuresForExam(examType, patientRes);
       setStructureDefinitions(allStructures);
 
       if (examRes.organs_data && examRes.organs_data.length > 0) {
-        // Se já tem dados salvos, usa eles
         setOrgansData(examRes.organs_data);
       } else {
-        // Se é novo, inicializa baseado nas estruturas
         const initialOrgansData = allStructures.map(structure => ({
           organ_name: structure.label || structure, 
-          structure_id: structure.id || null,
           measurements: {},
-          selected_findings: [],
-          custom_notes: '',
           report_text: ''
         }));
         setOrgansData(initialOrgansData);
       }
-    } catch (error) {
-      toast.error('Erro ao carregar dados do exame');
-      console.error(error);
-    }
+    } catch (error) { toast.error('Erro ao carregar'); }
   };
 
   const saveExam = async () => {
@@ -88,70 +77,43 @@ export default function ExamPage() {
         organs_data: organsData,
         exam_weight: examWeight ? parseFloat(examWeight) : null
       });
-      toast.success('Exame salvo com sucesso!');
-    } catch (error) {
-      toast.error('Erro ao salvar exame');
-    }
+      toast.success('Salvo!');
+    } catch (error) { toast.error('Erro ao salvar'); }
   };
 
   const handleImageUpload = async (event) => {
     const files = event.target.files;
-    if (!files || files.length === 0) return;
-
+    if (!files.length) return;
     setUploading(true);
     try {
-      let processed = 0;
       for (let file of files) {
-        await new Promise((resolve, reject) => {
+        await new Promise((resolve) => {
           const reader = new FileReader();
           reader.onload = async (e) => {
-            try {
-              const imageData = {
-                filename: file.name,
-                data: e.target.result,
-                organ: null
-              };
-              await db.saveImage(examId, imageData);
-              processed += 1;
-              resolve();
-            } catch (err) {
-              reject(err);
-            }
+            await db.saveImage(examId, { filename: file.name, data: e.target.result });
+            resolve();
           };
-          reader.onerror = reject;
           reader.readAsDataURL(file);
         });
       }
-      toast.success(`${processed} imagens adicionadas!`);
-      // Recarregar apenas imagens para não piscar a tela toda
-      const updatedExam = await db.getExam(examId);
-      setExamImages(updatedExam.images || []);
-    } catch (error) {
-      toast.error('Erro ao fazer upload');
-    } finally {
-      setUploading(false);
-    }
+      const updated = await db.getExam(examId);
+      setExamImages(updated.images || []);
+    } finally { setUploading(false); }
   };
 
   const handleDeleteImage = async (imageId) => {
-    try {
-      await db.deleteImage(examId, imageId);
-      setExamImages(prev => prev.filter(img => img.id !== imageId));
-      toast.success('Imagem removida');
-    } catch (error) {
-      toast.error('Erro ao remover imagem');
-    }
+    await db.deleteImage(examId, imageId);
+    setExamImages(prev => prev.filter(img => img.id !== imageId));
   };
 
   const updateOrganData = (index, field, value) => {
-    const newOrgansData = [...organsData];
-    newOrgansData[index] = {
-      ...newOrgansData[index],
-      [field]: value
-    };
-    setOrgansData(newOrgansData);
+    const newOrgans = [...organsData];
+    newOrgans[index] = { ...newOrgans[index], [field]: value };
+    setOrgansData(newOrgans);
   };
 
+  // --- DOCX HELPERS ---
+  
   const dataURLToUint8Array = (dataURL) => {
     const base64 = dataURL.split(',')[1];
     const binary = atob(base64);
@@ -161,158 +123,124 @@ export default function ExamPage() {
     return bytes;
   };
 
+  // Calcula tamanho da imagem mantendo proporção
+  const getImageSize = (base64, targetWidth = 250) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const ratio = img.height / img.width;
+        resolve({ width: targetWidth, height: targetWidth * ratio });
+      };
+      img.onerror = () => resolve({ width: targetWidth, height: targetWidth * 0.75 });
+      img.src = base64;
+    });
+  };
+
+  // Parser de Markdown Corrigido
+  const parseText = (text) => {
+    const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+    return parts.map(part => {
+      if (part.startsWith('**')) return new TextRun({ text: part.slice(2, -2), bold: true });
+      if (part.startsWith('*')) return new TextRun({ text: part.slice(1, -1), italics: true });
+      if (part) return new TextRun({ text: part });
+      return null;
+    }).filter(Boolean);
+  };
+
   const exportToDocx = async () => {
     try {
       await saveExam();
       const settings = await db.getSettings();
-
-      // Configurar Cabeçalho
-      let headerChildren = [];
       
-      // Tentar usar imagem se disponível e for imagem
-      if (settings.letterhead_path && settings.letterhead_path.startsWith('data:image')) {
-        try {
-          const imgData = dataURLToUint8Array(settings.letterhead_path);
-          headerChildren.push(
-            new Paragraph({
-              children: [
-                new ImageRun({ 
-                  data: imgData, 
-                  transformation: { width: 600, height: 100 } // Ajuste altura para não quebrar página
-                })
-              ],
-              alignment: AlignmentType.CENTER,
-            })
-          );
-        } catch (e) {
-          console.warn("Não foi possível processar a imagem do cabeçalho", e);
-        }
-      } else if (settings.letterhead_path) {
-        // Se tem path mas não é imagem (ex: docx), avisamos no console
-        console.log("Cabeçalho DOCX/PDF não é renderizado na prévia do gerador, apenas texto.");
+      // Cabeçalho
+      const headerChildren = [];
+      if (settings.letterhead_path?.startsWith('data:image')) {
+         const dims = await getImageSize(settings.letterhead_path, 600);
+         const imgData = dataURLToUint8Array(settings.letterhead_path);
+         headerChildren.push(new Paragraph({
+             children: [new ImageRun({ data: imgData, transformation: { width: dims.width, height: dims.height } })],
+             alignment: AlignmentType.CENTER,
+         }));
+      } else {
+         // Texto fallback se não tiver imagem
+         headerChildren.push(new Paragraph({
+             children: [new TextRun({ text: settings.clinic_name || 'LAUDO', bold: true, size: 28 })],
+             alignment: AlignmentType.CENTER,
+         }));
       }
 
-      // Texto do cabeçalho sempre vai, caso a imagem falhe ou para complementar
-      headerChildren.push(
-        new Paragraph({
-          alignment: AlignmentType.CENTER,
-          children: [
-            new TextRun({ text: settings.clinic_name || 'Laudo Veterinário', bold: true, size: 28 }),
-          ],
-        }),
-      );
-      
-      if (settings.veterinarian_name) {
-        headerChildren.push(
-          new Paragraph({ 
-            alignment: AlignmentType.CENTER, 
-            children: [ new TextRun(`${settings.veterinarian_name} ${settings.crmv ? '• CRMV ' + settings.crmv : ''}`) ] 
-          })
-        );
-      }
-
-      const header = new Header({ children: headerChildren });
-
-      // Corpo do Laudo
-      const t = (text) => translate(text, reportLanguage);
-      const examTypeName = getExamTypeName(exam?.exam_type);
-
+      // Corpo
+      const t = (txt) => translate(txt, reportLanguage);
       const docChildren = [
-        new Paragraph({ text: `${t('Paciente')}: ${patient?.name}`, heading: HeadingLevel.HEADING_2 }),
-        new Paragraph({ text: `${t('Tutor')}: ${patient?.owner_name || '-'} • ${t('Raça')}: ${patient?.breed} • ${t('Peso')}: ${examWeight || patient?.weight}kg` }),
-        new Paragraph({ text: `${t('Exame')}: ${t(examTypeName)} • Data: ${new Date(exam.exam_date).toLocaleDateString()}` }),
-        new Paragraph({ text: ' ' }), // Espaço
-        new Paragraph({ 
-          text: t('LAUDO'), 
-          heading: HeadingLevel.HEADING_1, 
-          alignment: AlignmentType.CENTER 
-        }),
+        new Paragraph({ text: `${t('Paciente')}: ${patient.name}`, heading: HeadingLevel.HEADING_2 }),
+        new Paragraph({ text: `${t('Tutor')}: ${patient.owner_name || '-'} • ${t('Raça')}: ${patient.breed}` }),
+        new Paragraph({ text: ' ' }),
+        new Paragraph({ text: t('LAUDO'), heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER }),
         new Paragraph({ text: ' ' }),
       ];
 
-      // Iterar órgãos
-      const structureOrder = getStructuresForExam(exam?.exam_type, patient);
-      
-      structureOrder.forEach((struct) => {
-        const label = struct.label || struct; // Compatibilidade string/objeto
-        const od = organsData.find(o => o.organ_name === label);
-        
-        if (od && (od.report_text || Object.keys(od.measurements).length > 0)) {
-          docChildren.push(new Paragraph({ 
-            text: t(label), 
-            heading: HeadingLevel.HEADING_3 
-          }));
-
-          if (od.report_text) {
-            // Processar texto com medidas
-            let text = od.report_text;
-            // Substituir placeholders {MEDIDA}
-            Object.values(od.measurements).forEach(m => {
-               text = text.replace('{MEDIDA}', `${m.value} ${m.unit}`);
-            });
-            docChildren.push(new Paragraph({ text: t(text) }));
-          }
-          docChildren.push(new Paragraph({ text: ' ' }));
+      // Estruturas
+      getStructuresForExam(exam.exam_type, patient).forEach(struct => {
+        const label = struct.label || struct;
+        const data = organsData.find(o => o.organ_name === label);
+        if (data && (data.report_text || Object.keys(data.measurements).length)) {
+            docChildren.push(new Paragraph({ text: t(label), heading: HeadingLevel.HEADING_3 }));
+            if (data.report_text) {
+                let txt = data.report_text;
+                Object.values(data.measurements).forEach(m => {
+                    txt = txt.replace('{MEDIDA}', `${m.value} ${m.unit}`);
+                });
+                txt.split('\n').forEach(line => {
+                    docChildren.push(new Paragraph({ children: parseText(line) }));
+                });
+            }
+            docChildren.push(new Paragraph({ text: ' ' }));
         }
       });
 
-      // Imagens
+      // Imagens (Grid Limpo)
       if (examImages.length > 0) {
         docChildren.push(new Paragraph({ children: [new PageBreak()] }));
-        docChildren.push(new Paragraph({ text: t('IMAGENS'), heading: HeadingLevel.HEADING_2 }));
         
-        // Grid de imagens (2 por linha para caber melhor)
         const rows = [];
         for (let i = 0; i < examImages.length; i += 2) {
-          const rowChildren = [];
-          
-          // Imagem 1
-          try {
-            const img1 = examImages[i];
-            rowChildren.push(new TableCell({
-              children: [
-                new Paragraph({
-                  children: [new ImageRun({ data: dataURLToUint8Array(img1.data), transformation: { width: 250, height: 200 } })],
-                  alignment: AlignmentType.CENTER
-                }),
-                new Paragraph({ text: img1.organ || '', alignment: AlignmentType.CENTER })
-              ],
-              width: { size: 50, type: WidthType.PERCENTAGE }
-            }));
-          } catch(e) {}
+            const cells = [];
+            const addImg = async (img) => {
+                const dims = await getImageSize(img.data, 250);
+                return new TableCell({
+                    borders: { top: {style: BorderStyle.NONE}, bottom: {style: BorderStyle.NONE}, left: {style: BorderStyle.NONE}, right: {style: BorderStyle.NONE} },
+                    children: [
+                        new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            children: [new ImageRun({ 
+                                data: dataURLToUint8Array(img.data), 
+                                transformation: { width: dims.width, height: dims.height } 
+                            })]
+                        }),
+                        new Paragraph({ text: " " }) // Espaçamento
+                    ],
+                });
+            };
 
-          // Imagem 2
-          if (i + 1 < examImages.length) {
-            try {
-              const img2 = examImages[i+1];
-              rowChildren.push(new TableCell({
-                children: [
-                  new Paragraph({
-                    children: [new ImageRun({ data: dataURLToUint8Array(img2.data), transformation: { width: 250, height: 200 } })],
-                    alignment: AlignmentType.CENTER
-                  }),
-                  new Paragraph({ text: img2.organ || '', alignment: AlignmentType.CENTER })
-                ],
-                width: { size: 50, type: WidthType.PERCENTAGE }
-              }));
-            } catch(e) {}
-          }
-
-          rows.push(new TableRow({ children: rowChildren }));
+            cells.push(await addImg(examImages[i]));
+            if (i+1 < examImages.length) cells.push(await addImg(examImages[i+1]));
+            
+            rows.push(new TableRow({ children: cells }));
         }
-
-        docChildren.push(new Table({
-          rows: rows,
-          width: { size: 100, type: WidthType.PERCENTAGE }
+        
+        docChildren.push(new Table({ 
+            rows, 
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            borders: { top: {style: BorderStyle.NONE}, bottom: {style: BorderStyle.NONE}, left: {style: BorderStyle.NONE}, right: {style: BorderStyle.NONE}, insideHorizontal: {style: BorderStyle.NONE}, insideVertical: {style: BorderStyle.NONE} }
         }));
       }
 
       const doc = new Document({
         sections: [{
-          headers: { default: header },
-          properties: { type: SectionType.CONTINUOUS },
-          children: docChildren,
-        }],
+            headers: { default: new Header({ children: headerChildren }) },
+            properties: { type: SectionType.CONTINUOUS },
+            children: docChildren
+        }]
       });
 
       const blob = await Packer.toBlob(doc);
@@ -321,220 +249,169 @@ export default function ExamPage() {
       link.href = url;
       link.download = `Laudo_${patient.name}.docx`;
       link.click();
-      toast.success('Laudo gerado!');
-    } catch (error) {
-      console.error(error);
-      toast.error('Erro ao gerar documento');
+      toast.success('Gerado!');
+    } catch (e) {
+      console.error(e);
+      toast.error('Erro ao gerar. Verifique as imagens.');
     }
   };
 
-  if (!exam || !patient) {
-    return <div className="flex items-center justify-center h-screen">Carregando exame...</div>;
-  }
+  if (!exam || !patient) return <div className="flex h-screen items-center justify-center">Carregando...</div>;
 
-  // Proteção contra índices inválidos ou dados não carregados
   const currentOrgan = organsData[currentOrganIndex];
-  // Busca segura da definição estrutural
-  const currentDefinition = structureDefinitions[currentOrganIndex] || { label: currentOrgan?.organ_name, measurements: [] };
-  
   const organTemplates = templates.filter(t => t.organ === currentOrgan?.organ_name);
 
   return (
-    <div className="min-h-screen bg-background" data-testid="exam-page">
-      <div className="container mx-auto p-4">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6 bg-card p-4 rounded-lg border shadow-sm">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold">{patient.name}</h1>
-              <p className="text-sm text-muted-foreground">
-                {patient.species === 'dog' ? 'Cão' : 'Gato'} • {patient.breed}
-              </p>
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
+      
+      {/* Cabeçalho Fixo */}
+      <div className="h-14 border-b flex items-center justify-between px-4 bg-card shrink-0">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/')}><ArrowLeft className="h-5 w-5"/></Button>
+          <div>
+            <h1 className="font-bold text-lg leading-tight">{patient.name}</h1>
+            <div className="text-xs text-muted-foreground flex gap-2 items-center">
+               <span>{patient.species}</span>
+               <Input className="h-5 w-16 text-xs px-1" placeholder="Peso" value={examWeight} onChange={e => setExamWeight(e.target.value)} /> kg
             </div>
           </div>
-          <div className="flex gap-2">
-             <Select value={reportLanguage} onValueChange={setReportLanguage}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {getAvailableLanguages().map((lang) => (
-                    <SelectItem key={lang.code} value={lang.code}>
-                      {lang.flag} {lang.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            <Button onClick={saveExam} variant="outline">
-              <Save className="mr-2 h-4 w-4" /> Salvar
-            </Button>
-            <Button onClick={exportToDocx}>
-              <Download className="mr-2 h-4 w-4" /> Exportar
-            </Button>
+        </div>
+        <div className="flex gap-2">
+           <Button variant="outline" size="sm" onClick={() => window.print()}><Printer className="h-4 w-4 mr-2"/> Imprimir PDF</Button>
+           <Button variant="outline" size="sm" onClick={saveExam}><Save className="h-4 w-4 mr-2"/> Salvar</Button>
+           <Button size="sm" onClick={exportToDocx}><Download className="h-4 w-4 mr-2"/> DOCX</Button>
+        </div>
+      </div>
+
+      {/* Layout de 3 Colunas Fixo */}
+      <div className="flex-1 grid grid-cols-12 min-h-0">
+        
+        {/* Coluna 1: Imagens (Esquerda - 20%) */}
+        <div className="col-span-2 border-r bg-muted/10 flex flex-col min-h-0">
+          <div className="p-2 border-b flex justify-between items-center">
+             <span className="text-xs font-bold text-muted-foreground">IMAGENS ({examImages.length})</span>
+             <label htmlFor="img-up" className="cursor-pointer bg-primary text-white p-1 rounded hover:opacity-80">
+                <Plus className="h-3 w-3" />
+                <input id="img-up" type="file" multiple accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading}/>
+             </label>
           </div>
+          <ScrollArea className="flex-1 p-2">
+             <div className="space-y-2">
+               {examImages.map(img => (
+                 <div key={img.id} className="relative group aspect-video bg-black/5 rounded overflow-hidden border">
+                   <img src={img.data} className="w-full h-full object-cover" alt="" />
+                   <button onClick={() => handleDeleteImage(img.id)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded opacity-0 group-hover:opacity-100">
+                     <Trash2 className="h-3 w-3" />
+                   </button>
+                 </div>
+               ))}
+             </div>
+          </ScrollArea>
         </div>
 
-        <div className="grid grid-cols-12 gap-6 h-[calc(100vh-180px)]">
-          
-          {/* Sidebar (Lista de Estruturas) */}
-          <div className="col-span-3 h-full">
-            <Card className="h-full flex flex-col">
-              <CardHeader className="py-3 px-4 border-b">
-                <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Estruturas</CardTitle>
-              </CardHeader>
-              <ScrollArea className="flex-1">
-                <div className="p-2 space-y-1">
-                  {organsData.map((organ, idx) => (
-                    <Button
+        {/* Coluna 2: Editor (Meio - 70%) */}
+        <div className="col-span-8 flex flex-col min-h-0 bg-background p-4 gap-4">
+          {currentOrgan ? (
+            <>
+               <h2 className="text-xl font-bold text-primary flex items-center gap-2">
+                 {currentOrgan.organ_name}
+               </h2>
+               
+               <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
+                  {/* Área de Texto e Medidas */}
+                  <div className="flex flex-col gap-3">
+                     <div className="bg-muted/20 p-3 rounded border">
+                        <div className="flex gap-2 mb-2">
+                           <Input id="med-val" placeholder="0.0" className="h-8 bg-white" type="number" 
+                             onKeyDown={e => {if(e.key==='Enter'){ const val = e.currentTarget.value; updateOrganData(currentOrganIndex, 'measurements', {...currentOrgan.measurements, [`m_${Date.now()}`]: {value: val, unit: 'cm'}}); e.currentTarget.value=''; }}}
+                           />
+                           <span className="text-sm self-center">cm</span>
+                           <Button size="sm" variant="secondary" onClick={() => {
+                              const el = document.getElementById('med-val');
+                              if(el.value) {
+                                 updateOrganData(currentOrganIndex, 'measurements', {...currentOrgan.measurements, [`m_${Date.now()}`]: {value: el.value, unit: 'cm'}});
+                                 el.value = '';
+                              }
+                           }}>Add</Button>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                           {Object.values(currentOrgan.measurements || {}).map((m, i) => (
+                              <Badge key={i} variant="outline" className="bg-white">{m.value} {m.unit}</Badge>
+                           ))}
+                        </div>
+                     </div>
+
+                     <div className="flex-1 flex flex-col">
+                        <Label className="mb-1">Texto</Label>
+                        <Textarea 
+                           className="flex-1 resize-none font-mono text-base p-4 leading-relaxed shadow-sm" 
+                           value={currentOrgan.report_text}
+                           onChange={e => updateOrganData(currentOrganIndex, 'report_text', e.target.value)}
+                           placeholder="Escreva aqui..."
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Dica: Use **negrito** e *itálico*.</p>
+                     </div>
+                  </div>
+
+                  {/* Área de Templates */}
+                  <Card className="flex flex-col min-h-0 border-l-4 border-l-primary/20">
+                     <CardHeader className="py-2 px-3 bg-muted/20 border-b"><CardTitle className="text-xs">MODELOS</CardTitle></CardHeader>
+                     <ScrollArea className="flex-1 bg-muted/5">
+                        <div className="p-2 space-y-2">
+                           {organTemplates.length > 0 ? organTemplates.map(t => (
+                              <div key={t.id} className="p-2 bg-card border rounded hover:border-primary cursor-pointer transition-all"
+                                   onClick={() => updateOrganData(currentOrganIndex, 'report_text', (currentOrgan.report_text || '') + (currentOrgan.report_text ? '\n' : '') + t.text)}>
+                                 <div className="font-bold text-xs text-primary">{t.title}</div>
+                                 <div className="text-[10px] text-muted-foreground line-clamp-2">{t.text}</div>
+                              </div>
+                           )) : <div className="p-4 text-xs text-center text-muted-foreground">Sem modelos cadastrados.</div>}
+                        </div>
+                     </ScrollArea>
+                  </Card>
+               </div>
+            </>
+          ) : <div className="flex items-center justify-center h-full text-muted-foreground">Selecione uma estrutura ao lado</div>}
+        </div>
+
+        {/* Coluna 3: Estruturas (Direita - 15%) */}
+        <div className="col-span-2 border-l bg-muted/10 flex flex-col min-h-0">
+           <div className="p-2 border-b"><span className="text-xs font-bold text-muted-foreground">ROTEIRO</span></div>
+           <ScrollArea className="flex-1">
+              <div className="flex flex-col">
+                 {organsData.map((organ, idx) => (
+                    <button
                       key={idx}
-                      variant={currentOrganIndex === idx ? 'secondary' : 'ghost'}
-                      className={`w-full justify-start ${organ.report_text ? 'border-l-4 border-l-green-500' : ''}`}
+                      className={`text-left px-3 py-2 text-sm border-b border-transparent hover:bg-white transition-colors flex items-center justify-between
+                        ${currentOrganIndex === idx ? 'bg-white font-bold text-primary border-l-4 border-l-primary shadow-sm' : 'text-muted-foreground'}
+                        ${organ.report_text ? 'text-green-700' : ''}
+                      `}
                       onClick={() => setCurrentOrganIndex(idx)}
                     >
                       <span className="truncate">{organ.organ_name}</span>
-                      {organ.report_text && <Check className="ml-auto h-3 w-3 text-green-500" />}
-                    </Button>
-                  ))}
-                </div>
-              </ScrollArea>
-            </Card>
-          </div>
-
-          {/* Editor Central */}
-          <div className="col-span-6 h-full">
-            {currentOrgan && (
-              <OrganEditor
-                organ={currentOrgan}
-                templates={organTemplates}
-                referenceValues={referenceValues}
-                structureDefinition={currentDefinition} // Passando definição segura
-                onChange={(field, value) => updateOrganData(currentOrganIndex, field, value)}
-              />
-            )}
-          </div>
-
-          {/* Painel de Imagens */}
-          <div className="col-span-3 h-full">
-            <Card className="h-full flex flex-col">
-              <CardHeader className="py-3 px-4 border-b flex flex-row items-center justify-between">
-                <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Imagens</CardTitle>
-                <label htmlFor="img-upload" className="cursor-pointer">
-                  <div className="bg-primary text-primary-foreground hover:bg-primary/90 h-8 w-8 rounded-full flex items-center justify-center">
-                    <Upload className="h-4 w-4" />
-                  </div>
-                  <input 
-                    id="img-upload" 
-                    type="file" 
-                    multiple 
-                    accept="image/*" 
-                    className="hidden" 
-                    onChange={handleImageUpload}
-                    disabled={uploading}
-                  />
-                </label>
-              </CardHeader>
-              <ScrollArea className="flex-1 p-3">
-                <div className="space-y-3">
-                  {examImages.map(img => (
-                    <div key={img.id} className="relative group rounded-lg overflow-hidden border bg-muted/20">
-                      <img src={img.data} className="w-full h-32 object-cover" alt="Exame" />
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => handleDeleteImage(img.id)}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                      <div className="p-2 text-xs text-center text-muted-foreground">
-                        {img.filename}
-                      </div>
-                    </div>
-                  ))}
-                  {examImages.length === 0 && (
-                    <div className="text-center text-muted-foreground py-10 text-sm">
-                      Sem imagens
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-            </Card>
-          </div>
-
+                      {organ.report_text && <Check className="h-3 w-3" />}
+                    </button>
+                 ))}
+              </div>
+           </ScrollArea>
         </div>
+
+      </div>
+      
+      {/* Área de Impressão (Invisível) */}
+      <div id="printable-report" className="hidden print:block p-8 font-serif">
+         <h1 className="text-2xl font-bold text-center mb-4">LAUDO DE {patient.name.toUpperCase()}</h1>
+         {organsData.map((o, i) => o.report_text && (
+            <div key={i} className="mb-4">
+               <h3 className="font-bold text-lg">{o.organ_name}</h3>
+               <p className="whitespace-pre-wrap text-justify">{o.report_text}</p>
+            </div>
+         ))}
+         {examImages.length > 0 && (
+            <div className="mt-6 grid grid-cols-2 gap-4">
+               {examImages.map(img => <img key={img.id} src={img.data} className="w-full object-contain h-48"/>)}
+            </div>
+         )}
       </div>
     </div>
-  );
-}
-
-// Componente Editor Isolado
-function OrganEditor({ organ, templates, onChange, structureDefinition }) {
-  const [text, setText] = useState(organ.report_text || '');
-
-  useEffect(() => {
-    setText(organ.report_text || '');
-  }, [organ.organ_name]); // Atualiza quando muda de órgão
-
-  const handleTextChange = (e) => {
-    setText(e.target.value);
-    onChange('report_text', e.target.value);
-  };
-
-  const addTemplate = (templateText) => {
-    const newText = text ? text + '\n' + templateText : templateText;
-    setText(newText);
-    onChange('report_text', newText);
-  };
-
-  return (
-    <Card className="h-full flex flex-col">
-      <CardHeader className="py-4 border-b bg-muted/10">
-        <CardTitle>{organ.organ_name}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex-1 p-0 flex flex-col">
-        <Tabs defaultValue="report" className="flex-1 flex flex-col">
-          <div className="px-4 pt-2">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="report">Laudo</TabsTrigger>
-              <TabsTrigger value="templates">Frases Prontas</TabsTrigger>
-            </TabsList>
-          </div>
-
-          <TabsContent value="report" className="flex-1 p-4 flex flex-col data-[state=active]:flex">
-            <Label className="mb-2">Texto do Relatório</Label>
-            <Textarea 
-              className="flex-1 resize-none text-base leading-relaxed" 
-              value={text}
-              onChange={handleTextChange}
-              placeholder="Digite os achados aqui..."
-            />
-          </TabsContent>
-
-          <TabsContent value="templates" className="flex-1 p-0 data-[state=active]:flex flex-col min-h-0">
-            <ScrollArea className="flex-1">
-              <div className="p-4 space-y-2">
-                {templates.length > 0 ? templates.map(t => (
-                  <div 
-                    key={t.id} 
-                    className="p-3 border rounded-md hover:bg-accent cursor-pointer transition-colors"
-                    onClick={() => addTemplate(t.text)}
-                  >
-                    <div className="font-medium text-sm">{t.title}</div>
-                    <div className="text-xs text-muted-foreground line-clamp-2">{t.text}</div>
-                  </div>
-                )) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    Nenhum modelo encontrado para este órgão.
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
   );
 }
