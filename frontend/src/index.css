@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
+        "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans",
+        "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
+        monospace;
+}
+
+
+
+@layer base {
+  :root {
+    --background: 0 0% 96%; /* Light grey matching logo background */
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 330 80% 55%; /* Logo Pink */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 250 60% 96%; /* Logo Lavender (Light) */
+    --secondary-foreground: 240 10% 3.9%;
+    --muted: 240 5% 94%;
+    --muted-foreground: 240 4% 46%;
+    --accent: 250 60% 93%; /* Logo Lavender (Darker) */
+    --accent-foreground: 240 10% 3.9%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 6% 88%;
+    --input: 240 6% 88%;
+    --ring: 330 80% 55%; /* Logo Pink */
+    --radius: 0.5rem;
+  }
+  .dark {
+    --background: 0 0% 8%; /* Dark matching logo dark background */
+    --foreground: 40 30% 90%;   /* Logo Cream Text */
+    --card: 0 0% 10%;
+    --card-foreground: 40 30% 90%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 40 30% 90%;
+    --primary: 330 80% 65%; /* Logo Pink (Lighter for Dark) */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 250 20% 20%; /* Logo Lavender (Dark) */
+    --secondary-foreground: 40 30% 90%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 240 4% 56%;
+    --accent: 250 20% 25%; /* Logo Lavender (Darker) */
+    --accent-foreground: 40 30% 90%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 330 80% 65%;
+  }
+}
+
+
+
+@layer base {
+  * {
+    @apply border-border;
+    }
+  body {
+    @apply bg-background text-foreground;
+    }
+}

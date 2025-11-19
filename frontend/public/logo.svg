@@ -1,0 +1,20 @@
+<svg width="200" height="60" viewBox="0 0 200 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Gradiente roxo para azul -->
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#9333EA;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2563EB;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Ícone de ultrassom veterinário -->
+  <circle cx="25" cy="30" r="18" stroke="url(#gradient)" stroke-width="2" fill="none"/>
+  <path d="M 18 30 Q 25 25, 32 30" stroke="url(#gradient)" stroke-width="2" fill="none"/>
+  <path d="M 18 35 Q 25 30, 32 35" stroke="url(#gradient)" stroke-width="2" fill="none"/>
+  <path d="M 20 24 L 20 20" stroke="url(#gradient)" stroke-width="2" stroke-linecap="round"/>
+  <path d="M 30 24 L 30 20" stroke="url(#gradient)" stroke-width="2" stroke-linecap="round"/>
+  
+  <!-- Texto TVUSVET -->
+  <text x="50" y="26" font-family="'Manrope', sans-serif" font-size="16" font-weight="700" fill="url(#gradient)">TVUSVET</text>
+  <text x="50" y="42" font-family="'Manrope', sans-serif" font-size="10" font-weight="400" fill="#6B7280">Laudos Veterinários</text>
+</svg>
