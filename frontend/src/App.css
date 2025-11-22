@@ -1,1 +1,19 @@
-/* Estilos movidos para index.css para evitar conflitos */
+/* App.css - Estilos Gerais da Aplicação */
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
+/* Garante o funcionamento do Tailwind */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.App {
+  min-height: 100vh;
+}
+
+/* --- CORREÇÃO CRÍTICA --- */
+/* Esconde o relatório da tela normal do computador. */
+/* Ele só aparecerá quando o print.css for ativado pela impressora. */
+#printable-report {
+  display: none;
+}

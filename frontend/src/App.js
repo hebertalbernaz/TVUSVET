@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { HashRouter, Routes, Route } from 'react-router-dom'; // 🔴 MUDANÇA AQUI: HashRouter
 import { ThemeProvider } from 'next-themes';
 import '@/App.css';
+import '@/print.css';
 import { db } from '@/services/database';
 import HomePage from '@/pages/HomePage';
 import SettingsPage from '@/pages/SettingsPage';

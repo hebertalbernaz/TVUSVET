@@ -1,104 +1,92 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
- 
+
+/* Estilos Globais Básicos */
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
+        "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans",
+        "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
+}
+
+/* Configuração de Cores do Tema (Sua Identidade Visual) */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 0 0% 96%; /* Cinza claro (Fundo do logo) */
+    --foreground: 240 10% 3.9%;
+    
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 240 10% 3.9%;
+    
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --popover-foreground: 240 10% 3.9%;
+    
+    /* Suas Cores Personalizadas */
+    --primary: 330 80% 55%; /* Rosa do Logo */
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 250 60% 96%; /* Lavanda Claro */
+    --secondary-foreground: 240 10% 3.9%;
+    
+    --muted: 240 5% 94%;
+    --muted-foreground: 240 4% 46%;
+    
+    --accent: 250 60% 93%; /* Lavanda Escuro */
+    --accent-foreground: 240 10% 3.9%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 240 6% 88%;
+    --input: 240 6% 88%;
+    --ring: 330 80% 55%; /* Anel de foco Rosa */
+    
     --radius: 0.5rem;
   }
  
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --background: 0 0% 8%; /* Fundo Escuro */
+    --foreground: 40 30% 90%; /* Texto Creme */
+    
+    --card: 0 0% 10%;
+    --card-foreground: 40 30% 90%;
+    
+    --popover: 0 0% 10%;
+    --popover-foreground: 40 30% 90%;
+    
+    --primary: 330 80% 65%; /* Rosa mais claro para modo escuro */
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 250 20% 20%;
+    --secondary-foreground: 40 30% 90%;
+    
+    --muted: 0 0% 15%;
+    --muted-foreground: 240 4% 56%;
+    
+    --accent: 250 20% 25%;
+    --accent-foreground: 40 30% 90%;
+    
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 330 80% 65%;
   }
 }
- 
+
 @layer base {
-  * { @apply border-border; }
-  body { @apply bg-background text-foreground; }
-}
-
-/* --- REGRAS DE IMPRESSÃO (Centralizadas) --- */
-@media print {
-  @page { margin: 0mm; size: auto; }
-
-  body * { visibility: hidden; }
-  
-  .no-print, .no-print * { display: none !important; }
-
-  #printable-report, #printable-report * { visibility: visible; }
-
-  #printable-report {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    background: white;
-    color: black;
-    font-family: 'Times New Roman', serif;
-    font-size: 12pt;
-    line-height: 1.5;
-    z-index: 9999;
+  * {
+    @apply border-border;
   }
-
-  .report-table { width: 100%; border-collapse: collapse; border: none; }
-  .report-table thead { display: table-header-group; }
-  .report-table tbody { display: table-row-group; }
-
-  .report-header-cell { padding-top: 0.5cm; text-align: center; border: none; }
-  .report-content-cell { padding: 0.5cm 2cm; vertical-align: top; border: none; }
-
-  .print-image-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    page-break-inside: avoid;
-    margin-top: 20px;
+  body {
+    @apply bg-background text-foreground;
   }
-  
-  .print-image-item img {
-    max-height: 200px;
-    width: auto; max-width: 100%;
-    object-fit: contain; border: none;
-  }
-
-  .avoid-break { page-break-inside: avoid; break-inside: avoid; }
 }
