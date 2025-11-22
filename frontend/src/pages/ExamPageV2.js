@@ -35,7 +35,6 @@ export default function ExamPage() {
   const [examImages, setExamImages] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [reportLanguage, setReportLanguage] = useState('pt');
-  const [structureDefinitions, setStructureDefinitions] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => { loadExamData(); }, [examId]);
@@ -50,7 +49,6 @@ export default function ExamPage() {
     try {
       const examRes = await db.getExam(examId);
       if (!examRes) return navigate('/');
-      
       setExam(examRes);
       setExamWeight(examRes.exam_weight || '');
       
@@ -62,36 +60,26 @@ export default function ExamPage() {
       setExamDateTime(toLocalISO(initialDate));
 
       setExamImages(examRes.images || []);
-
       const patientRes = await db.getPatient(examRes.patient_id);
       setPatient(patientRes);
-
       const settingsRes = await db.getSettings();
       setSettings(settingsRes);
-
       const templatesRes = await db.getTemplates();
       setTemplates(templatesRes);
-
       const refValuesRes = await db.getReferenceValues();
       setReferenceValues(refValuesRes);
 
       const examType = examRes.exam_type || 'ultrasound_abd';
       const allStructures = getStructuresForExam(examType, patientRes);
-      setStructureDefinitions(allStructures);
-
+      
       if (examRes.organs_data && examRes.organs_data.length > 0) {
-        const mergedData = allStructures.map(struct => {
+         const mergedData = allStructures.map(struct => {
             const saved = examRes.organs_data.find(od => od.organ_name === struct.label);
             return saved || { organ_name: struct.label, measurements: {}, report_text: '' };
-        });
-        setOrgansData(mergedData);
+         });
+         setOrgansData(mergedData);
       } else {
-        const initialOrgansData = allStructures.map(structure => ({
-          organ_name: structure.label || structure, 
-          measurements: {},
-          report_text: ''
-        }));
-        setOrgansData(initialOrgansData);
+         setOrgansData(allStructures.map(s => ({ organ_name: s.label, measurements: {}, report_text: '' })));
       }
     } catch (error) { toast.error('Erro ao carregar'); }
   };
@@ -116,8 +104,8 @@ export default function ExamPage() {
         await new Promise((resolve) => {
           const reader = new FileReader();
           reader.onload = async (e) => {
-            await db.saveImage(examId, { filename: file.name, data: e.target.result });
-            resolve();
+             await db.saveImage(examId, { filename: file.name, data: e.target.result });
+             resolve();
           };
           reader.readAsDataURL(file);
         });
@@ -138,6 +126,7 @@ export default function ExamPage() {
     setOrgansData(newOrgans);
   };
 
+  // Helpers
   const calculateAge = (patient) => {
     if (patient.birth_year) {
         const currentYear = new Date().getFullYear();
@@ -170,7 +159,7 @@ export default function ExamPage() {
     return null;
   };
 
-  // --- DOCX HELPERS ---
+  // DOCX Helpers
   const dataURLToUint8Array = (dataURL) => {
     const base64 = dataURL.split(',')[1];
     const binary = atob(base64);
@@ -247,7 +236,6 @@ export default function ExamPage() {
                 txt.split('\n').forEach(line => {
                     docChildren.push(new Paragraph({ children: parseText(line) }));
                 });
-                
                 const refText = getReferenceValueText(data.organ_name);
                 if (refText) {
                     docChildren.push(new Paragraph({ 
@@ -270,10 +258,7 @@ export default function ExamPage() {
                 return new TableCell({
                     borders: { top: {style: BorderStyle.NONE}, bottom: {style: BorderStyle.NONE}, left: {style: BorderStyle.NONE}, right: {style: BorderStyle.NONE} },
                     children: [
-                        new Paragraph({
-                            alignment: AlignmentType.CENTER,
-                            children: [new ImageRun({ data: dataURLToUint8Array(img.data), transformation: { width: dims.width, height: dims.height } })],
-                        }),
+                        new Paragraph({ alignment: AlignmentType.CENTER, children: [new ImageRun({ data: dataURLToUint8Array(img.data), transformation: { width: dims.width, height: dims.height } })] }),
                         new Paragraph({ text: " " }) 
                     ],
                 });
@@ -283,8 +268,7 @@ export default function ExamPage() {
             rows.push(new TableRow({ children: cells }));
         }
         docChildren.push(new Table({ 
-            rows, 
-            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows, width: { size: 100, type: WidthType.PERCENTAGE },
             borders: { top: {style: BorderStyle.NONE}, bottom: {style: BorderStyle.NONE}, left: {style: BorderStyle.NONE}, right: {style: BorderStyle.NONE}, insideHorizontal: {style: BorderStyle.NONE}, insideVertical: {style: BorderStyle.NONE} }
         }));
       }
@@ -317,6 +301,7 @@ export default function ExamPage() {
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       
+      {/* Header UI */}
       <div className="h-14 border-b flex items-center justify-between px-4 bg-card shrink-0 no-print">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')}><ArrowLeft className="h-5 w-5"/></Button>
@@ -343,6 +328,7 @@ export default function ExamPage() {
         </div>
       </div>
 
+      {/* Grid UI */}
       <div className="flex-1 overflow-hidden no-print">
          <ResizablePanelGroup direction="horizontal">
             <ResizablePanel defaultSize={20} minSize={15} maxSize={50} className="border-r bg-muted/10">
@@ -393,10 +379,9 @@ export default function ExamPage() {
          </ResizablePanelGroup>
       </div>
       
-      {/* ======= ÁREA DE IMPRESSÃO (PDF) COM TABELA ======= */}
+      {/* === PDF COM TABELA === */}
       <div id="printable-report">
          <table className="report-table">
-            {/* CABEÇALHO (Repete em todas as páginas) */}
             <thead>
                <tr>
                   <td className="report-header-cell">
@@ -410,12 +395,9 @@ export default function ExamPage() {
                   </td>
                </tr>
             </thead>
-
-            {/* CONTEÚDO */}
             <tbody>
                <tr>
                   <td className="report-content-cell">
-                     {/* Dados do Paciente */}
                      <div className="border-b pb-4 mb-6 text-sm space-y-1 avoid-break">
                         <div className="grid grid-cols-2 gap-4">
                             <p><strong>Paciente:</strong> {patient.name}</p>
