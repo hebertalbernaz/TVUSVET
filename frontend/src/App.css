@@ -2,7 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* --- ESTILOS GERAIS --- */
 .App {
   min-height: 100vh;
 }
@@ -10,36 +9,32 @@
 /* --- REGRAS DE IMPRESSÃO (PDF) --- */
 @media print {
   
-  /* 1. Limpa as margens da folha */
-  /* Remove "localhost", data e hora do navegador */
+  /* Limpa as margens da folha */
   @page {
     margin: 0mm;
     size: auto;
   }
 
-  /* 2. Oculta a interface do programa */
+  /* Esconde a interface do programa */
   body * {
     visibility: hidden;
   }
-
-  /* Garante que elementos de navegação sumam */
+  
+  /* Elementos específicos para esconder */
   .no-print, .no-print * {
     display: none !important;
   }
 
-  /* 3. Mostra APENAS o relatório */
+  /* Mostra o relatório */
   #printable-report, #printable-report * {
     visibility: visible;
   }
 
-  /* Posiciona o relatório para ocupar a folha inteira */
   #printable-report {
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
-    margin: 0;
-    padding: 0;
     background: white;
     color: black;
     font-family: 'Times New Roman', serif;
@@ -48,8 +43,7 @@
     z-index: 9999;
   }
 
-  /* 4. TABELA PARA REPETIR CABEÇALHO */
-  /* O navegador repete automaticamente o <thead> em cada nova página */
+  /* TABELA PARA REPETIR CABEÇALHO */
   .report-table {
     width: 100%;
     border-collapse: collapse;
@@ -57,32 +51,28 @@
   }
 
   .report-table thead {
-    display: table-header-group;
+    display: table-header-group; /* VITAL: Repete o cabeçalho */
   }
 
   .report-table tbody {
     display: table-row-group;
   }
 
-  .report-table tr {
-    page-break-inside: auto;
-  }
-
-  /* Ajuste do Cabeçalho (Timbrado) */
   .report-header-cell {
-    padding-top: 0.5cm; /* Espaço no topo do papel */
+    padding-top: 0.5cm;
     text-align: center;
     border: none;
+    /* Altura mínima para garantir espaço do logo */
+    height: 4cm;
   }
 
-  /* Ajuste do Conteúdo (Margens do texto) */
   .report-content-cell {
-    padding: 0.5cm 2cm 1cm 2cm; /* Cima | Dir | Baixo | Esq */
+    padding: 0.5cm 2cm; /* Margens laterais de 2cm */
     vertical-align: top;
     border: none;
   }
 
-  /* 5. IMAGENS */
+  /* Imagens */
   .print-image-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -91,27 +81,15 @@
     margin-top: 20px;
   }
   
-  .print-image-item {
-    text-align: center;
-    page-break-inside: avoid;
-    break-inside: avoid;
-  }
-
   .print-image-item img {
-    max-height: 220px;
+    max-height: 200px;
     width: auto;
     max-width: 100%;
     object-fit: contain;
     border: none;
   }
 
-  /* Utilitários de quebra */
   .avoid-break {
     page-break-inside: avoid;
-    break-inside: avoid;
-  }
-
-  .page-break-before {
-    page-break-before: always;
   }
 }

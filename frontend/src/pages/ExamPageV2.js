@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -32,7 +32,6 @@ export default function ExamPageV2() {
   
   const [examWeight, setExamWeight] = useState('');
   const [examDateTime, setExamDateTime] = useState('');
-
   const [examImages, setExamImages] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [reportLanguage, setReportLanguage] = useState('pt');
@@ -171,6 +170,7 @@ export default function ExamPageV2() {
     return null;
   };
 
+  // --- DOCX HELPERS ---
   const dataURLToUint8Array = (dataURL) => {
     const base64 = dataURL.split(',')[1];
     const binary = atob(base64);
@@ -316,6 +316,8 @@ export default function ExamPageV2() {
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
+      
+      {/* UI Header */}
       <div className="h-14 border-b flex items-center justify-between px-4 bg-card shrink-0 no-print">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')}><ArrowLeft className="h-5 w-5"/></Button>
@@ -342,6 +344,7 @@ export default function ExamPageV2() {
         </div>
       </div>
 
+      {/* UI Grid */}
       <div className="flex-1 overflow-hidden no-print">
          <ResizablePanelGroup direction="horizontal">
             <ResizablePanel defaultSize={20} minSize={15} maxSize={50} className="border-r bg-muted/10">
@@ -395,13 +398,14 @@ export default function ExamPageV2() {
       {/* ======= ÁREA DE IMPRESSÃO (PDF) COM TABELA ======= */}
       <div id="printable-report">
          <table className="report-table">
+            {/* CABEÇALHO (Repete em todas as páginas) */}
             <thead>
                <tr>
                   <td className="report-header-cell">
-                     {/* Timbrado - Repete em cada página */}
                      <div style={{width: '100%', display: 'flex', justifyContent: 'center', marginBottom: '10px'}}>
                         {settings?.letterhead_path?.startsWith('data:image') ? (
-                            <img src={settings.letterhead_path} style={{maxWidth: '90%', maxHeight: '3.5cm', objectFit: 'contain'}} alt="Cabeçalho" />
+                            /* Altura fixa de 3.5cm para não estourar a página */
+                            <img src={settings.letterhead_path} style={{maxWidth: '95%', maxHeight: '3.5cm', objectFit: 'contain'}} alt="Cabeçalho" />
                         ) : (
                             <h1 className="text-2xl font-bold uppercase text-center border-b pb-2 w-full">{settings?.clinic_name || 'LAUDO VETERINÁRIO'}</h1>
                         )}
@@ -410,6 +414,7 @@ export default function ExamPageV2() {
                </tr>
             </thead>
 
+            {/* CONTEÚDO */}
             <tbody>
                <tr>
                   <td className="report-content-cell">
