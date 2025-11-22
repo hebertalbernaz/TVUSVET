@@ -30,9 +30,8 @@ export default function ExamPageV2() {
   const [organsData, setOrgansData] = useState([]);
   const [currentOrganIndex, setCurrentOrganIndex] = useState(0);
   
-  // Novos estados para campos editáveis
   const [examWeight, setExamWeight] = useState('');
-  const [examDateTime, setExamDateTime] = useState(''); // Estado para data/hora
+  const [examDateTime, setExamDateTime] = useState(''); 
 
   const [examImages, setExamImages] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -50,13 +49,14 @@ export default function ExamPageV2() {
       setExam(examRes);
       setExamWeight(examRes.exam_weight || '');
       
-      // Formatar data para o input datetime-local (YYYY-MM-DDThh:mm)
+      // Lógica de Data/Hora Automática
+      let dateToUse = new Date(); // Padrão: Agora
       if (examRes.exam_date) {
-        const d = new Date(examRes.exam_date);
-        // Ajuste simples para fuso horário local no input
-        const localIso = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
-        setExamDateTime(localIso);
+        dateToUse = new Date(examRes.exam_date); // Se existe salvo, usa o salvo
       }
+      // Ajuste para o input local (fuso horário)
+      const localIso = new Date(dateToUse.getTime() - (dateToUse.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+      setExamDateTime(localIso);
 
       setExamImages(examRes.images || []);
 
@@ -94,7 +94,7 @@ export default function ExamPageV2() {
       await db.updateExam(examId, {
         organs_data: organsData,
         exam_weight: examWeight ? parseFloat(examWeight) : null,
-        exam_date: examDateTime ? new Date(examDateTime).toISOString() : new Date().toISOString() // Salva data alterada
+        exam_date: examDateTime ? new Date(examDateTime).toISOString() : new Date().toISOString()
       });
       toast.success('Salvo!');
     } catch (error) { toast.error('Erro ao salvar'); }
@@ -133,24 +133,27 @@ export default function ExamPageV2() {
 
   // --- HELPERS ---
 
-  // Calcula Idade
-  const calculateAge = (birthDate) => {
-    if (!birthDate) return 'Não informada';
-    const today = new Date();
-    const birth = new Date(birthDate);
-    let age = today.getFullYear() - birth.getFullYear();
-    const m = today.getMonth() - birth.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
-        age--;
+  // Nova Lógica de Idade (Baseada no Ano)
+  const calculateAge = (patient) => {
+    if (patient.birth_year) {
+        const currentYear = new Date().getFullYear();
+        const age = currentYear - patient.birth_year;
+        return age === 0 ? '< 1 ano' : `${age} anos`;
     }
-    if (age === 0) {
-        let months = (today.getFullYear() - birth.getFullYear()) * 12 + (today.getMonth() - birth.getMonth());
-        return `${months} meses`;
+    // Fallback para o sistema antigo de data completa
+    if (patient.birth_date) {
+        const today = new Date();
+        const birth = new Date(patient.birth_date);
+        let age = today.getFullYear() - birth.getFullYear();
+        const m = today.getMonth() - birth.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+            age--;
+        }
+        return `${age} anos`;
     }
-    return `${age} anos`;
+    return 'Não informada';
   };
 
-  // Formata Data e Hora para Texto
   const formatDateTimeText = (isoString) => {
       if (!isoString) return '';
       const date = new Date(isoString);
@@ -204,10 +207,9 @@ export default function ExamPageV2() {
   const exportToDocx = async () => {
     try {
       await saveExam();
-      const currentSettings = await db.getSettings(); // Recarregar settings
+      const currentSettings = await db.getSettings();
       const headerChildren = [];
 
-      // Cabeçalho
       if (currentSettings.letterhead_path?.startsWith('data:image')) {
          const dims = await getImageSize(currentSettings.letterhead_path, 600);
          const imgData = dataURLToUint8Array(currentSettings.letterhead_path);
@@ -227,10 +229,9 @@ export default function ExamPageV2() {
       }
 
       const t = (txt) => translate(txt, reportLanguage);
-      const age = calculateAge(patient.birth_date);
-      const dateTimeStr = formatDateTimeText(examDateTime); // Usar data/hora atual do input
+      const age = calculateAge(patient); // Usa a nova função de idade
+      const dateTimeStr = formatDateTimeText(examDateTime);
       
-      // Dados do Paciente e Exame
       const docChildren = [
         new Paragraph({ text: `${t('Paciente')}: ${patient.name}`, heading: HeadingLevel.HEADING_2 }),
         new Paragraph({ text: `${t('Tutor')}: ${patient.owner_name || '-'} • ${t('Raça')}: ${patient.breed} • ${t('Idade')}: ${age}` }),
@@ -240,7 +241,6 @@ export default function ExamPageV2() {
         new Paragraph({ text: ' ' }),
       ];
 
-      // Laudo dos Órgãos
       getStructuresForExam(exam.exam_type, patient).forEach(struct => {
         const label = struct.label || struct;
         const data = organsData.find(o => o.organ_name === label);
@@ -255,11 +255,10 @@ export default function ExamPageV2() {
                     docChildren.push(new Paragraph({ children: parseText(line) }));
                 });
                 
-                // Referência (Só se existir)
                 const refText = getReferenceValueText(data.organ_name);
                 if (refText) {
                     docChildren.push(new Paragraph({ 
-                        children: [new TextRun({ text: refText, color: "666666", size: 16, italics: true })], // Cinza, pequeno, itálico
+                        children: [new TextRun({ text: refText, color: "666666", size: 16, italics: true })],
                         spacing: { before: 60 } 
                     }));
                 }
@@ -268,7 +267,6 @@ export default function ExamPageV2() {
         }
       });
 
-      // Imagens
       if (examImages.length > 0) {
         docChildren.push(new Paragraph({ children: [new PageBreak()] }));
         const rows = [];
@@ -337,13 +335,12 @@ export default function ExamPageV2() {
             <h1 className="font-bold text-lg leading-tight">{patient.name}</h1>
             <div className="text-xs text-muted-foreground flex gap-2 items-center">
                <span>{patient.species}</span><span>•</span>
-               {/* Campo Peso */}
                <Input className="h-6 w-16 text-xs px-1" placeholder="Peso" value={examWeight} onChange={e => setExamWeight(e.target.value)} /> kg
                <span className="ml-2 border-l pl-2">Data:</span>
-               {/* Campo Data/Hora */}
+               {/* CAMPO AUMENTADO */}
                <Input 
                  type="datetime-local" 
-                 className="h-6 w-36 text-xs px-1" 
+                 className="h-6 w-auto min-w-[190px] text-xs px-1" 
                  value={examDateTime} 
                  onChange={e => setExamDateTime(e.target.value)} 
                />
@@ -429,7 +426,7 @@ export default function ExamPageV2() {
                 </div>
                 <div className="grid grid-cols-2">
                     <p><strong>Raça:</strong> {patient.breed}</p>
-                    <p><strong>Idade:</strong> {calculateAge(patient.birth_date)}</p>
+                    <p><strong>Idade:</strong> {calculateAge(patient)}</p>
                 </div>
                 <div className="grid grid-cols-2">
                     <p><strong>Tutor:</strong> {patient.owner_name}</p>

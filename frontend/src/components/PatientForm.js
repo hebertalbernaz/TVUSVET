@@ -13,7 +13,7 @@ export function PatientForm({ patient, onSuccess, onCancel }) {
     breed: '',
     sex: 'male',
     is_neutered: false,
-    birth_date: '', // Novo campo
+    birth_year: '', // Mudamos de birth_date para birth_year
     weight: '',
     owner_name: '',
     owner_phone: ''
@@ -23,10 +23,9 @@ export function PatientForm({ patient, onSuccess, onCancel }) {
     if (patient) {
       setFormData({
         ...patient,
-        // Garante que o peso seja string para o input
         weight: patient.weight || '',
-        // Garante formato de data YYYY-MM-DD para o input
-        birth_date: patient.birth_date ? patient.birth_date.split('T')[0] : '' 
+        // Carrega o ano se existir, ou tenta extrair da data antiga se houver migração
+        birth_year: patient.birth_year || (patient.birth_date ? new Date(patient.birth_date).getFullYear() : '')
       });
     }
   }, [patient]);
@@ -37,8 +36,9 @@ export function PatientForm({ patient, onSuccess, onCancel }) {
       const dataToSave = {
         ...formData,
         weight: formData.weight ? parseFloat(formData.weight) : null,
-        // Salva data completa ISO
-        birth_date: formData.birth_date ? new Date(formData.birth_date).toISOString() : null 
+        birth_year: formData.birth_year ? parseInt(formData.birth_year) : null,
+        // Limpamos o campo antigo para evitar confusão
+        birth_date: null 
       };
 
       if (patient) {
@@ -117,12 +117,16 @@ export function PatientForm({ patient, onSuccess, onCancel }) {
           </Select>
         </div>
         <div className="space-y-2">
-            <Label htmlFor="birth_date">Data de Nascimento</Label>
+            {/* CAMPO NOVO: Apenas Ano */}
+            <Label htmlFor="birth_year">Ano de Nascimento (Aprox.)</Label>
             <Input 
-                id="birth_date" 
-                type="date"
-                value={formData.birth_date}
-                onChange={e => setFormData({...formData, birth_date: e.target.value})}
+                id="birth_year" 
+                type="number"
+                placeholder="Ex: 2018"
+                min="1990"
+                max={new Date().getFullYear()}
+                value={formData.birth_year}
+                onChange={e => setFormData({...formData, birth_year: e.target.value})}
             />
         </div>
         <div className="space-y-2">
