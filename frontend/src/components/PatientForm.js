@@ -1,151 +1,145 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { toast } from 'sonner';
 import { db } from '@/services/database';
+import { toast } from 'sonner';
 
 export function PatientForm({ patient, onSuccess, onCancel }) {
-  const [formData, setFormData] = useState(patient || {
+  const [formData, setFormData] = useState({
     name: '',
     species: 'dog',
     breed: '',
-    weight: '',
-    size: 'medium',
     sex: 'male',
     is_neutered: false,
-    owner_name: ''
+    birth_date: '', // Novo campo
+    weight: '',
+    owner_name: '',
+    owner_phone: ''
   });
+
+  useEffect(() => {
+    if (patient) {
+      setFormData({
+        ...patient,
+        // Garante que o peso seja string para o input
+        weight: patient.weight || '',
+        // Garante formato de data YYYY-MM-DD para o input
+        birth_date: patient.birth_date ? patient.birth_date.split('T')[0] : '' 
+      });
+    }
+  }, [patient]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const data = {
+      const dataToSave = {
         ...formData,
-        weight: parseFloat(formData.weight)
+        weight: formData.weight ? parseFloat(formData.weight) : null,
+        // Salva data completa ISO
+        birth_date: formData.birth_date ? new Date(formData.birth_date).toISOString() : null 
       };
-      
+
       if (patient) {
-        await db.updatePatient(patient.id, data);
-        toast.success('Paciente atualizado com sucesso!');
+        await db.updatePatient(patient.id, dataToSave);
+        toast.success('Paciente atualizado!');
       } else {
-        await db.createPatient(data);
-        toast.success('Paciente cadastrado com sucesso!');
+        await db.createPatient(dataToSave);
+        toast.success('Paciente cadastrado!');
       }
       onSuccess();
     } catch (error) {
-      toast.error(`Erro ao ${patient ? 'atualizar' : 'cadastrar'} paciente`);
       console.error(error);
+      toast.error('Erro ao salvar paciente');
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4" data-testid="patient-form">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
-        <div>
+        <div className="space-y-2">
           <Label htmlFor="name">Nome do Paciente *</Label>
-          <Input
-            id="name"
+          <Input 
+            id="name" 
+            required 
             value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            required
-            data-testid="patient-name-input"
+            onChange={e => setFormData({...formData, name: e.target.value})}
           />
         </div>
-        <div>
+        <div className="space-y-2">
           <Label htmlFor="owner_name">Nome do Tutor</Label>
-          <Input
-            id="owner_name"
+          <Input 
+            id="owner_name" 
             value={formData.owner_name}
-            onChange={(e) => setFormData({ ...formData, owner_name: e.target.value })}
-            data-testid="owner-name-input"
+            onChange={e => setFormData({...formData, owner_name: e.target.value})}
           />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="species">Espécie *</Label>
-          <Select value={formData.species} onValueChange={(value) => setFormData({ ...formData, species: value })}>
-            <SelectTrigger data-testid="species-select">
-              <SelectValue />
-            </SelectTrigger>
+        <div className="space-y-2">
+          <Label htmlFor="species">Espécie</Label>
+          <Select 
+            value={formData.species} 
+            onValueChange={val => setFormData({...formData, species: val})}
+          >
+            <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="dog">Cão</SelectItem>
-              <SelectItem value="cat">Gato</SelectItem>
+              <SelectItem value="dog">Canino</SelectItem>
+              <SelectItem value="cat">Felino</SelectItem>
+              <SelectItem value="other">Outro</SelectItem>
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <Label htmlFor="breed">Raça *</Label>
-          <Input
-            id="breed"
+        <div className="space-y-2">
+          <Label htmlFor="breed">Raça</Label>
+          <Input 
+            id="breed" 
             value={formData.breed}
-            onChange={(e) => setFormData({ ...formData, breed: e.target.value })}
-            required
-            data-testid="breed-input"
+            onChange={e => setFormData({...formData, breed: e.target.value})}
           />
         </div>
       </div>
 
       <div className="grid grid-cols-3 gap-4">
-        <div>
-          <Label htmlFor="weight">Peso (kg) *</Label>
-          <Input
-            id="weight"
-            type="number"
-            step="0.1"
-            value={formData.weight}
-            onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
-            required
-            data-testid="weight-input"
-          />
-        </div>
-        <div>
-          <Label htmlFor="size">Porte *</Label>
-          <Select value={formData.size} onValueChange={(value) => setFormData({ ...formData, size: value })}>
-            <SelectTrigger data-testid="size-select">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="small">Pequeno</SelectItem>
-              <SelectItem value="medium">Médio</SelectItem>
-              <SelectItem value="large">Grande</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label htmlFor="sex">Sexo *</Label>
-          <Select value={formData.sex} onValueChange={(value) => setFormData({ ...formData, sex: value })}>
-            <SelectTrigger data-testid="sex-select">
-              <SelectValue />
-            </SelectTrigger>
+        <div className="space-y-2">
+          <Label htmlFor="sex">Sexo</Label>
+          <Select 
+            value={formData.sex} 
+            onValueChange={val => setFormData({...formData, sex: val})}
+          >
+            <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="male">Macho</SelectItem>
               <SelectItem value="female">Fêmea</SelectItem>
             </SelectContent>
           </Select>
         </div>
+        <div className="space-y-2">
+            <Label htmlFor="birth_date">Data de Nascimento</Label>
+            <Input 
+                id="birth_date" 
+                type="date"
+                value={formData.birth_date}
+                onChange={e => setFormData({...formData, birth_date: e.target.value})}
+            />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="weight">Peso (kg)</Label>
+          <Input 
+            id="weight" 
+            type="number" 
+            step="0.1"
+            value={formData.weight}
+            onChange={e => setFormData({...formData, weight: e.target.value})}
+          />
+        </div>
       </div>
 
-      <div className="flex items-center space-x-2">
-        <input
-          type="checkbox"
-          id="is_neutered"
-          checked={formData.is_neutered}
-          onChange={(e) => setFormData({ ...formData, is_neutered: e.target.checked })}
-          className="rounded"
-          data-testid="neutered-checkbox"
-        />
-        <Label htmlFor="is_neutered">Paciente Castrado</Label>
-      </div>
-
-      <div className="flex gap-2 pt-4">
-        <Button type="submit" className="flex-1" data-testid="save-patient-button">
-          {patient ? 'Atualizar' : 'Salvar'}
-        </Button>
-        <Button type="button" variant="outline" onClick={onCancel} className="flex-1">Cancelar</Button>
+      <div className="flex justify-end gap-2 pt-4">
+        <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
+        <Button type="submit">Salvar</Button>
       </div>
     </form>
   );
