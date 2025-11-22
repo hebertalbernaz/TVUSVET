@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Upload, Save, Download, X, Check, ArrowLeft, Trash2, Plus, Printer } from 'lucide-react';
+import { Upload, Save, Download, X, Check, ArrowLeft, Trash2, Plus, Printer, Bold, Italic } from 'lucide-react';
 import { toast } from 'sonner';
 import { db } from '@/services/database';
 import { 
@@ -39,6 +39,7 @@ export default function ExamPage() {
 
   useEffect(() => { loadExamData(); }, [examId]);
 
+  // --- DATA HELPERS ---
   const toLocalISO = (dateObj) => {
     const tzOffset = dateObj.getTimezoneOffset() * 60000;
     const localISOTime = (new Date(dateObj - tzOffset)).toISOString().slice(0, 16);
@@ -158,6 +159,37 @@ export default function ExamPage() {
     return null;
   };
 
+  // 🔴 CORREÇÃO: PROCESSADOR DE TEXTO (Substitui medidas e formata Markdown)
+  const processReportText = (text, measurements) => {
+    if (!text) return '';
+    
+    let processed = text;
+    
+    // 1. Substituir Medidas (Igual ao DOCX)
+    if (measurements) {
+        const sortedMeasurements = Object.keys(measurements)
+            .sort()
+            .map(key => measurements[key]);
+        
+        sortedMeasurements.forEach(m => {
+             processed = processed.replace(/\{(MEDIDA|medida|MEDIDAS|medidas)\}|<(MEDIDA|medida|MEDIDAS|medidas)>/, `${m.value} ${m.unit}`);
+        });
+    }
+
+    // 2. Renderizar Markdown (**negrito**, *italico*) para HTML
+    // Usamos split para preservar a segurança do React (não usar dangerouslySetInnerHTML se possível)
+    // Mas para mistura complexa, dangerously é mais fácil, vamos usar uma abordagem segura de componentes
+    
+    // Truque simples: retornar array de componentes React
+    const parts = processed.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+    return parts.map((part, index) => {
+      if (part.startsWith('**')) return <strong key={index}>{part.slice(2, -2)}</strong>;
+      if (part.startsWith('*')) return <em key={index}>{part.slice(1, -1)}</em>;
+      return <span key={index}>{part}</span>;
+    });
+  };
+
+  // DOCX Helpers
   const dataURLToUint8Array = (dataURL) => {
     const base64 = dataURL.split(',')[1];
     const binary = atob(base64);
@@ -179,7 +211,7 @@ export default function ExamPage() {
     });
   };
 
-  const parseText = (text) => {
+  const parseTextDocx = (text) => {
     const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
     return parts.map(part => {
       if (part.startsWith('**')) return new TextRun({ text: part.slice(2, -2), bold: true });
@@ -228,23 +260,13 @@ export default function ExamPage() {
             docChildren.push(new Paragraph({ text: t(data.organ_name), heading: HeadingLevel.HEADING_3 }));
             if (data.report_text) {
                 let txt = data.report_text;
-                
-                // 🔴 CORREÇÃO DE MEDIDAS INTELIGENTE 🔴
-                // 1. Ordena as medidas por ordem de criação (garante sequencia)
-                const sortedMeasurements = Object.keys(data.measurements)
-                    .sort() 
-                    .map(key => data.measurements[key]);
-
-                // 2. Substitui qualquer variação de placeholder ({MEDIDA}, <medidas>, etc)
+                const sortedMeasurements = Object.keys(data.measurements).sort().map(key => data.measurements[key]);
                 sortedMeasurements.forEach(m => {
-                    // Regex aceita: {MEDIDA}, {medida}, <MEDIDA>, <medida>, <medidas>, {medidas}
                     txt = txt.replace(/\{(MEDIDA|medida|MEDIDAS|medidas)\}|<(MEDIDA|medida|MEDIDAS|medidas)>/, `${m.value} ${m.unit}`);
                 });
-
                 txt.split('\n').forEach(line => {
-                    docChildren.push(new Paragraph({ children: parseText(line) }));
+                    docChildren.push(new Paragraph({ children: parseTextDocx(line) }));
                 });
-                
                 const refText = getReferenceValueText(data.organ_name);
                 if (refText) {
                     docChildren.push(new Paragraph({ 
@@ -300,7 +322,11 @@ export default function ExamPage() {
     } catch (e) { console.error(e); toast.error('Erro ao gerar.'); }
   };
 
-  const handlePrintPdf = () => { window.print(); };
+  // CORREÇÃO: Forçar foco antes de imprimir
+  const handlePrintPdf = () => { 
+      window.focus(); // Garante foco para o Electron
+      setTimeout(() => window.print(), 100); // Pequeno delay para garantir renderização
+  };
 
   if (!exam || !patient) return <div className="flex h-screen items-center justify-center">Carregando...</div>;
 
@@ -430,7 +456,12 @@ export default function ExamPage() {
                      {organsData.map((o, i) => o.report_text && (
                         <div key={i} className="mb-6 avoid-break">
                            <h3 className="font-bold text-lg mb-1">{translate(o.organ_name, reportLanguage)}</h3>
-                           <p className="whitespace-pre-wrap text-justify text-sm leading-relaxed">{o.report_text}</p>
+                           
+                           {/* USANDO O FORMATADOR COM SUBSTITUIÇÃO DE MEDIDAS */}
+                           <div className="whitespace-pre-wrap text-justify text-sm leading-relaxed">
+                               {processReportText(o.report_text, o.measurements)}
+                           </div>
+
                            {getReferenceValueText(o.organ_name) && (
                                <p className="text-xs text-gray-500 mt-1 italic">{getReferenceValueText(o.organ_name)}</p>
                            )}
@@ -461,6 +492,7 @@ export default function ExamPage() {
 function OrganEditor({ organ, templates, onChange }) {
   const [text, setText] = useState(organ.report_text || '');
   const [measurements, setMeasurements] = useState(organ.measurements || {});
+  const textAreaRef = useRef(null);
 
   useEffect(() => {
     setText(organ.report_text || '');
@@ -472,10 +504,23 @@ function OrganEditor({ organ, templates, onChange }) {
   const addMeasurement = (val, unit) => { const id = `m_${Date.now()}`; const newM = { ...measurements, [id]: { value: val, unit } }; setMeasurements(newM); onChange('measurements', newM); };
   const deleteMeasurement = (key) => { const newM = { ...measurements }; delete newM[key]; setMeasurements(newM); onChange('measurements', newM); };
 
+  const insertFormatting = (type) => {
+    if (!textAreaRef.current) return;
+    const start = textAreaRef.current.selectionStart;
+    const end = textAreaRef.current.selectionEnd;
+    const selected = text.substring(start, end);
+    const marker = type === 'bold' ? '**' : '*';
+    const newText = text.substring(0, start) + `${marker}${selected}${marker}` + text.substring(end);
+    updateText(newText);
+  };
+
   return (
     <>
-        <h2 className="text-2xl font-bold text-primary flex items-center gap-2 mb-4">{organ.organ_name}</h2>
-        <div className="grid grid-cols-2 gap-4 h-[calc(100%-3rem)]">
+        <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-primary flex items-center gap-2">{organ.organ_name}</h2>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4 h-[calc(100%-4rem)]">
             <div className="flex flex-col gap-3 h-full">
                 <div className="bg-muted/20 p-3 rounded border">
                     <div className="flex gap-2 mb-2">
@@ -493,9 +538,20 @@ function OrganEditor({ organ, templates, onChange }) {
                     </div>
                 </div>
                 <div className="flex-1 flex flex-col min-h-0">
-                    <Label className="mb-1">Texto</Label>
-                    <Textarea className="flex-1 resize-none font-mono text-base p-4 leading-relaxed shadow-sm" value={text} onChange={e => updateText(e.target.value)} placeholder="Escreva aqui..." />
-                    <p className="text-xs text-muted-foreground mt-1">Dica: Use **negrito** e *itálico*.</p>
+                    <div className="flex justify-between items-end mb-1">
+                        <Label>Texto</Label>
+                        <div className="flex gap-1">
+                            <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => insertFormatting('bold')} title="Negrito"><Bold className="h-3 w-3"/></Button>
+                            <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => insertFormatting('italic')} title="Itálico"><Italic className="h-3 w-3"/></Button>
+                        </div>
+                    </div>
+                    <Textarea 
+                        ref={textAreaRef}
+                        className="flex-1 resize-none font-mono text-base p-4 leading-relaxed shadow-sm" 
+                        value={text} 
+                        onChange={e => updateText(e.target.value)} 
+                        placeholder="Escreva aqui..." 
+                    />
                 </div>
             </div>
             <Card className="flex flex-col h-full border-l-4 border-l-primary/20">

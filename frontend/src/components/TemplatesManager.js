@@ -6,8 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
-import { Plus, Trash2, Edit, Save, X, Bold, Italic, Hash } from 'lucide-react';
+import { Plus, Trash2, Edit, Bold, Italic } from 'lucide-react';
 import { toast } from 'sonner';
 import { db } from '@/services/database';
 import { ABDOMINAL_ORGANS, REPRODUCTIVE_ORGANS_MALE, REPRODUCTIVE_ORGANS_FEMALE } from '@/lib/exam_types';
@@ -23,6 +22,34 @@ export function TemplatesManager({ templates, onUpdate }) {
   const [editText, setEditText] = useState('');
   const [newTemplate, setNewTemplate] = useState({ organ: '', lang: 'pt', category: 'normal', title: '', text: '' });
   
+  // Refs para manipulação de texto
+  const newTextRef = useRef(null);
+  const editTextRef = useRef(null);
+
+  // Função para inserir formatação (Negrito/Itálico) na posição do cursor
+  const insertFormatting = (type, isEditing = false) => {
+    const ref = isEditing ? editTextRef : newTextRef;
+    const currentText = isEditing ? editText : newTemplate.text;
+    const setText = isEditing ? setEditText : (val) => setNewTemplate({ ...newTemplate, text: val });
+
+    if (!ref.current) return;
+
+    const start = ref.current.selectionStart;
+    const end = ref.current.selectionEnd;
+    const selected = currentText.substring(start, end);
+    const marker = type === 'bold' ? '**' : '*';
+    const newText = currentText.substring(0, start) + `${marker}${selected}${marker}` + currentText.substring(end);
+
+    setText(newText);
+    
+    // Recupera o foco após inserir
+    setTimeout(() => {
+        ref.current.focus();
+        ref.current.selectionStart = start + marker.length;
+        ref.current.selectionEnd = end + marker.length;
+    }, 10);
+  };
+
   const createTemplate = async () => {
     try {
       await db.createTemplate(newTemplate);
@@ -42,7 +69,6 @@ export function TemplatesManager({ templates, onUpdate }) {
 
   const deleteTemplate = async (id) => { await db.deleteTemplate(id); onUpdate(); };
 
-  // Agrupa por Órgão para facilitar visualização
   const grouped = templates.reduce((acc, t) => {
       const key = `${t.organ} (${t.lang || 'pt'})`;
       if(!acc[key]) acc[key] = [];
@@ -79,7 +105,24 @@ export function TemplatesManager({ templates, onUpdate }) {
                         </div>
                     </div>
                     <div><Label>Título</Label><Input value={newTemplate.title} onChange={e => setNewTemplate({...newTemplate, title: e.target.value})} placeholder="Ex: Normal"/></div>
-                    <div><Label>Texto</Label><Textarea value={newTemplate.text} onChange={e => setNewTemplate({...newTemplate, text: e.target.value})} rows={3}/></div>
+                    
+                    {/* Área de Texto com Botões */}
+                    <div>
+                        <div className="flex justify-between items-end mb-1">
+                            <Label>Texto</Label>
+                            <div className="flex gap-1">
+                                <Button type="button" variant="outline" size="icon" className="h-6 w-6" onClick={() => insertFormatting('bold')} title="Negrito"><Bold className="h-3 w-3"/></Button>
+                                <Button type="button" variant="outline" size="icon" className="h-6 w-6" onClick={() => insertFormatting('italic')} title="Itálico"><Italic className="h-3 w-3"/></Button>
+                            </div>
+                        </div>
+                        <Textarea 
+                            ref={newTextRef}
+                            value={newTemplate.text} 
+                            onChange={e => setNewTemplate({...newTemplate, text: e.target.value})} 
+                            rows={3}
+                        />
+                    </div>
+
                     <Button size="sm" onClick={createTemplate}>Salvar</Button>
                 </div>
             </Card>
@@ -94,7 +137,11 @@ export function TemplatesManager({ templates, onUpdate }) {
                                 {editingId === t.id ? (
                                     <div className="w-full space-y-2">
                                         <Input value={editTitle} onChange={e=>setEditTitle(e.target.value)}/>
-                                        <Textarea value={editText} onChange={e=>setEditText(e.target.value)}/>
+                                        <div className="flex gap-1 mb-1">
+                                            <Button type="button" variant="outline" size="icon" className="h-6 w-6" onClick={() => insertFormatting('bold', true)}><Bold className="h-3 w-3"/></Button>
+                                            <Button type="button" variant="outline" size="icon" className="h-6 w-6" onClick={() => insertFormatting('italic', true)}><Italic className="h-3 w-3"/></Button>
+                                        </div>
+                                        <Textarea ref={editTextRef} value={editText} onChange={e=>setEditText(e.target.value)}/>
                                         <div className="flex gap-2"><Button size="sm" onClick={()=>saveEdit(t.id)}>Salvar</Button><Button variant="outline" size="sm" onClick={()=>setEditingId(null)}>Cancelar</Button></div>
                                     </div>
                                 ) : (
