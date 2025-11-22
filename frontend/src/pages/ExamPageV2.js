@@ -20,7 +20,7 @@ import { translate, getAvailableLanguages } from '@/services/translation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 
-export default function ExamPageV2() {
+export default function ExamPage() {
   const { examId } = useParams();
   const [exam, setExam] = useState(null);
   const [patient, setPatient] = useState(null);
@@ -317,7 +317,6 @@ export default function ExamPageV2() {
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       
-      {/* UI Header */}
       <div className="h-14 border-b flex items-center justify-between px-4 bg-card shrink-0 no-print">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')}><ArrowLeft className="h-5 w-5"/></Button>
@@ -344,7 +343,6 @@ export default function ExamPageV2() {
         </div>
       </div>
 
-      {/* UI Grid */}
       <div className="flex-1 overflow-hidden no-print">
          <ResizablePanelGroup direction="horizontal">
             <ResizablePanel defaultSize={20} minSize={15} maxSize={50} className="border-r bg-muted/10">
@@ -404,8 +402,7 @@ export default function ExamPageV2() {
                   <td className="report-header-cell">
                      <div style={{width: '100%', display: 'flex', justifyContent: 'center', marginBottom: '10px'}}>
                         {settings?.letterhead_path?.startsWith('data:image') ? (
-                            /* Altura fixa de 3.5cm para não estourar a página */
-                            <img src={settings.letterhead_path} style={{maxWidth: '95%', maxHeight: '3.5cm', objectFit: 'contain'}} alt="Cabeçalho" />
+                            <img src={settings.letterhead_path} style={{maxWidth: '90%', maxHeight: '3.5cm', objectFit: 'contain'}} alt="Cabeçalho" />
                         ) : (
                             <h1 className="text-2xl font-bold uppercase text-center border-b pb-2 w-full">{settings?.clinic_name || 'LAUDO VETERINÁRIO'}</h1>
                         )}

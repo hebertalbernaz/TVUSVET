@@ -1,35 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
+/* 1. MOTOR VISUAL (Obrigatório para a tela não quebrar) */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Estilos Gerais */
 .App {
   min-height: 100vh;
 }
 
-/* --- REGRAS DE IMPRESSÃO (PDF) --- */
+/* 2. REGRAS DE IMPRESSÃO (PDF) */
 @media print {
   
-  /* Limpa as margens da folha */
+  /* Limpa margens (Remove data, hora, localhost do topo/rodapé) */
   @page {
     margin: 0mm;
     size: auto;
   }
 
-  /* Esconde a interface do programa */
+  /* Esconde a interface do programa (botões, menus) */
   body * {
     visibility: hidden;
   }
   
-  /* Elementos específicos para esconder */
+  /* Garante que elementos 'não-imprimíveis' sumam */
   .no-print, .no-print * {
     display: none !important;
   }
 
-  /* Mostra o relatório */
+  /* Mostra APENAS o relatório */
   #printable-report, #printable-report * {
     visibility: visible;
   }
 
+  /* Posiciona o relatório para ocupar a folha inteira */
   #printable-report {
     position: absolute;
     left: 0;
@@ -43,7 +48,7 @@
     z-index: 9999;
   }
 
-  /* TABELA PARA REPETIR CABEÇALHO */
+  /* --- TABELA MÁGICA (Repete o cabeçalho em todas as páginas) --- */
   .report-table {
     width: 100%;
     border-collapse: collapse;
@@ -51,23 +56,24 @@
   }
 
   .report-table thead {
-    display: table-header-group; /* VITAL: Repete o cabeçalho */
+    display: table-header-group; /* ISSO faz o timbrado repetir */
   }
 
   .report-table tbody {
     display: table-row-group;
   }
 
+  /* Espaçamento do Cabeçalho */
   .report-header-cell {
     padding-top: 0.5cm;
     text-align: center;
     border: none;
-    /* Altura mínima para garantir espaço do logo */
-    height: 4cm;
+    height: 4cm; /* Altura reservada para o logo */
   }
 
+  /* Margens do Conteúdo (Simula papel A4) */
   .report-content-cell {
-    padding: 0.5cm 2cm; /* Margens laterais de 2cm */
+    padding: 0.5cm 2cm; /* Margens laterais */
     vertical-align: top;
     border: none;
   }
@@ -82,13 +88,14 @@
   }
   
   .print-image-item img {
-    max-height: 200px;
+    max-height: 220px;
     width: auto;
     max-width: 100%;
     object-fit: contain;
     border: none;
   }
 
+  /* Evita quebrar parágrafos */
   .avoid-break {
     page-break-inside: avoid;
   }
