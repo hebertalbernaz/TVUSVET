@@ -1,142 +1,108 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Fontes e resets básicos do App */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
 
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-    --radius: 0.5rem;
-  }
- 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-  }
-}
- 
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
+.App {
+  min-height: 100vh;
 }
 
-/* --- ESTILOS DE IMPRESSÃO (PDF) --- */
+/* --- REGRAS DE IMPRESSÃO PDF --- */
 @media print {
-  /* 1. Remove margens do navegador (mata data, url, titulo) */
+  /* 1. Limpa a folha (remove data/hora/url do navegador) */
   @page {
-    margin: 0mm; 
+    margin: 0;
     size: auto;
   }
 
-  /* 2. Esconde a interface do app */
-  body * {
+  /* 2. Oculta TUDO que não seja o relatório */
+  body {
     visibility: hidden;
+    background: white;
   }
+  
+  /* Garante que a interface do usuário suma */
   .no-print, .no-print * {
     display: none !important;
   }
 
-  /* 3. Mostra apenas o relatório */
-  #printable-report, #printable-report * {
-    visibility: visible;
-  }
-
+  /* 3. Mostra e posiciona o Relatório */
   #printable-report {
+    visibility: visible;
     position: absolute;
-    left: 0;
     top: 0;
+    left: 0;
     width: 100%;
+    margin: 0;
+    padding: 0;
     background: white;
     color: black;
     font-family: 'Times New Roman', serif;
     font-size: 12pt;
     line-height: 1.5;
+    /* Importante: Permite que o conteúdo flua e crie páginas */
+    overflow: visible; 
   }
 
-  /* 4. Estrutura de Tabela para Repetição de Cabeçalho */
+  /* Garante que o conteúdo interno do relatório seja visível */
+  #printable-report * {
+    visibility: visible;
+  }
+
+  /* 4. TABELA DE REPETIÇÃO DE CABEÇALHO */
+  /* A mágica acontece aqui: o navegador repete thead em cada página */
   .report-table {
     width: 100%;
     border-collapse: collapse;
   }
 
   .report-table thead {
-    display: table-header-group; /* O Segredo: Repete em cada página */
+    display: table-header-group;
   }
 
   .report-table tbody {
     display: table-row-group;
   }
 
-  .report-table tfoot {
-    display: table-footer-group;
+  /* Espaçamento do cabeçalho */
+  .report-header-cell {
+    padding-top: 0.5cm;
+    text-align: center;
   }
 
-  /* Espaçamento interno do papel (Margens reais do laudo) */
+  /* Conteúdo com margens de papel A4 */
   .report-content-cell {
-    padding: 1.5cm 2cm 1.5cm 2cm; /* Top, Right, Bottom, Left */
+    padding: 0.5cm 2cm; /* Topo/Baixo  Esquerda/Direita */
     vertical-align: top;
   }
 
-  /* Ajuste de Imagens */
+  /* Imagens */
   .print-image-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: 15px;
     page-break-inside: avoid;
   }
   
   .print-image-item {
     page-break-inside: avoid;
     text-align: center;
+    break-inside: avoid;
   }
 
   .print-image-item img {
-    max-height: 220px;
+    max-height: 250px;
     width: auto;
     max-width: 100%;
     object-fit: contain;
   }
 
-  /* Evitar quebras indesejadas */
+  /* Evita quebrar parágrafos ao meio */
   .avoid-break {
     page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Força quebra de página antes das imagens se necessário */
+  .page-break-before {
+    page-break-before: always;
   }
 }

@@ -31,7 +31,7 @@ export default function ExamPageV2() {
   const [currentOrganIndex, setCurrentOrganIndex] = useState(0);
   
   const [examWeight, setExamWeight] = useState('');
-  const [examDateTime, setExamDateTime] = useState(''); 
+  const [examDateTime, setExamDateTime] = useState('');
 
   const [examImages, setExamImages] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -58,9 +58,7 @@ export default function ExamPageV2() {
       let initialDate = new Date();
       if (examRes.exam_date) {
         const savedDate = new Date(examRes.exam_date);
-        if (!isNaN(savedDate.getTime())) {
-            initialDate = savedDate;
-        }
+        if (!isNaN(savedDate.getTime())) initialDate = savedDate;
       }
       setExamDateTime(toLocalISO(initialDate));
 
@@ -83,7 +81,11 @@ export default function ExamPageV2() {
       setStructureDefinitions(allStructures);
 
       if (examRes.organs_data && examRes.organs_data.length > 0) {
-        setOrgansData(examRes.organs_data);
+        const mergedData = allStructures.map(struct => {
+            const saved = examRes.organs_data.find(od => od.organ_name === struct.label);
+            return saved || { organ_name: struct.label, measurements: {}, report_text: '' };
+        });
+        setOrgansData(mergedData);
       } else {
         const initialOrgansData = allStructures.map(structure => ({
           organ_name: structure.label || structure, 
@@ -318,7 +320,6 @@ export default function ExamPageV2() {
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       
-      {/* Header UI (Não sai na impressão) */}
       <div className="h-14 border-b flex items-center justify-between px-4 bg-card shrink-0 no-print">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')}><ArrowLeft className="h-5 w-5"/></Button>
@@ -345,7 +346,6 @@ export default function ExamPageV2() {
         </div>
       </div>
 
-      {/* Grid UI (Não sai na impressão) */}
       <div className="flex-1 overflow-hidden no-print">
          <ResizablePanelGroup direction="horizontal">
             <ResizablePanel defaultSize={20} minSize={15} maxSize={50} className="border-r bg-muted/10">
@@ -369,7 +369,7 @@ export default function ExamPageV2() {
                   </ScrollArea>
                 </div>
             </ResizablePanel>
-            <ResizableHandle />
+            <ResizableHandle withHandle className="bg-border w-2 hover:bg-primary/20 transition-colors" />
             <ResizablePanel defaultSize={60} minSize={30}>
                 <div className="h-full p-4 bg-background">
                     {currentOrgan ? (
@@ -377,7 +377,7 @@ export default function ExamPageV2() {
                     ) : <div className="flex items-center justify-center h-full text-muted-foreground">Selecione uma estrutura ao lado</div>}
                 </div>
             </ResizablePanel>
-            <ResizableHandle />
+            <ResizableHandle withHandle className="bg-border w-2 hover:bg-primary/20 transition-colors" />
             <ResizablePanel defaultSize={20} minSize={15} maxSize={30} className="border-l bg-muted/10">
                 <div className="h-full flex flex-col">
                    <div className="p-2 border-b"><span className="text-xs font-bold text-muted-foreground">ROTEIRO</span></div>
@@ -396,14 +396,13 @@ export default function ExamPageV2() {
          </ResizablePanelGroup>
       </div>
       
-      {/* ============ ÁREA DE IMPRESSÃO (PDF) ============ */}
+      {/* ÁREA DE IMPRESSÃO (Tabela HTML) */}
       <div id="printable-report">
          <table className="report-table">
-            {/* CABEÇALHO (Repete em todas as páginas) */}
             <thead>
                <tr>
-                  <td className="report-header-cell">
-                     <div className="print-header-content">
+                  <td>
+                     <div style={{marginBottom: '10px'}}>
                         {settings?.letterhead_path?.startsWith('data:image') ? (
                             <img src={settings.letterhead_path} style={{width: '100%', maxHeight: '4cm', objectFit: 'contain'}} alt="Cabeçalho" />
                         ) : (
@@ -413,8 +412,6 @@ export default function ExamPageV2() {
                   </td>
                </tr>
             </thead>
-
-            {/* CONTEÚDO */}
             <tbody>
                <tr>
                   <td className="report-content-cell">
@@ -461,15 +458,6 @@ export default function ExamPageV2() {
                   </td>
                </tr>
             </tbody>
-
-            {/* RODAPÉ (Opcional, placeholder para espaço) */}
-            <tfoot>
-               <tr>
-                  <td className="report-footer-cell">
-                     <div style={{height: '1cm'}}></div> 
-                  </td>
-               </tr>
-            </tfoot>
          </table>
       </div>
     </div>
