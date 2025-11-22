@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react'; // Adicionado useRef
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +19,9 @@ export default function SettingsPage() {
   const [referenceValues, setReferenceValues] = useState([]);
   const [activeTab, setActiveTab] = useState('clinic');
   const navigate = useNavigate();
+  
+  // Referência para o input de arquivo (Isso resolve o problema do clique)
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     loadAllData();
@@ -55,31 +58,29 @@ export default function SettingsPage() {
     }
   };
 
-  // 🔴 CORREÇÃO: Função async para esperar o banco de dados
   const importBackup = (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = async (e) => { // Callback agora é async
+    reader.onload = async (e) => {
       try {
-        // IMPORTANTE: await aqui para garantir que os dados sejam salvos
+        // AQUI: O await garante que esperamos o banco gravar antes de prosseguir
         const success = await db.importBackup(e.target.result);
         
         if (success) {
           toast.success('Backup importado com sucesso!');
-          // Recarrega os dados na tela imediatamente
-          await loadAllData(); 
+          await loadAllData(); // Atualiza a tela imediatamente
         } else {
-          toast.error('Erro ao importar backup');
+          toast.error('Erro ao importar: Formato inválido');
         }
       } catch (error) {
         console.error(error);
-        toast.error('Arquivo inválido');
+        toast.error('Erro ao ler arquivo de backup');
       }
     };
     reader.readAsText(file);
-    event.target.value = ''; // Permite importar o mesmo arquivo novamente
+    event.target.value = ''; // Limpa para permitir importar de novo se precisar
   };
 
   if (!settings) {
@@ -95,19 +96,25 @@ export default function SettingsPage() {
           </h1>
           <div className="flex gap-2 items-center">
             <ThemeToggle />
-            <label htmlFor="import-backup">
-              <input
-                id="import-backup"
-                type="file"
-                accept=".json"
-                onChange={importBackup}
-                className="hidden"
-              />
-              <Button variant="outline" as="span" className="cursor-pointer">
-                <Upload className="mr-2 h-4 w-4" />
-                Importar Backup (JSON)
-              </Button>
-            </label>
+            
+            {/* Input escondido conectado à referência */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              onChange={importBackup}
+              className="hidden"
+            />
+            
+            {/* Botão que aciona o input via código */}
+            <Button 
+              onClick={() => fileInputRef.current.click()} 
+              variant="outline"
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Importar Backup (JSON)
+            </Button>
+
             <Button onClick={() => navigate('/')} variant="ghost">
               <X className="mr-2 h-4 w-4" />
               Voltar
@@ -149,6 +156,9 @@ export default function SettingsPage() {
   );
 }
 
+// ... (O resto dos componentes ClinicSettings e BackupSettings permanecem iguais ao arquivo anterior)
+// Para economizar espaço, certifique-se de manter o restante do código que já estava lá,
+// ou copie do meu envio anterior se precisar de tudo completo.
 function ClinicSettings({ settings, onSave }) {
   const [formData, setFormData] = useState(settings);
 
@@ -217,9 +227,7 @@ function BackupSettings({ settings, onSave, onImportSuccess }) {
   const handleExport = async () => {
     try {
       const { encryptBackup } = await import('@/services/cryptoBackup');
-      // 🔴 CORREÇÃO: Adicionado await aqui também
       const json = await db.exportBackup();
-      
       const finalPass = useSavedPassphrase && settings.saved_backup_passphrase ? settings.saved_backup_passphrase : passphrase;
       if (!finalPass) {
         alert('Defina uma senha para criptografar o backup ou salve uma senha nas configurações.');
@@ -255,13 +263,10 @@ function BackupSettings({ settings, onSave, onImportSuccess }) {
           return;
         }
         const json = await decryptBackup(enc, finalPass);
-        
-        // 🔴 CORREÇÃO: Adicionado await aqui
         const ok = await db.importBackup(json);
-        
         if (ok) {
           toast.success('Backup importado com sucesso!');
-          if (onImportSuccess) onImportSuccess(); // Atualiza a tela
+          if (onImportSuccess) onImportSuccess();
         } else {
           toast.error('Falha ao importar backup');
         }
