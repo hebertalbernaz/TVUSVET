@@ -18,12 +18,13 @@ import {
 import { getStructuresForExam, getExamTypeName } from '@/lib/exam_types';
 import { translate, getAvailableLanguages } from '@/services/translation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'; // IMPORTANTE
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 
 export default function ExamPageV2() {
   const { examId } = useParams();
   const [exam, setExam] = useState(null);
   const [patient, setPatient] = useState(null);
+  const [settings, setSettings] = useState(null); // NOVO: Settings para o PDF
   const [templates, setTemplates] = useState([]);
   const [referenceValues, setReferenceValues] = useState([]);
   const [organsData, setOrgansData] = useState([]);
@@ -47,6 +48,10 @@ export default function ExamPageV2() {
 
       const patientRes = await db.getPatient(examRes.patient_id);
       setPatient(patientRes);
+
+      // NOVO: Carregar settings para usar no PDF
+      const settingsRes = await db.getSettings();
+      setSettings(settingsRes);
 
       const templatesRes = await db.getTemplates();
       setTemplates(templatesRes);
@@ -112,6 +117,42 @@ export default function ExamPageV2() {
     setOrgansData(newOrgans);
   };
 
+  // --- NOVAS FUNÇÕES AUXILIARES ---
+
+  const calculateAge = (birthDate) => {
+    if (!birthDate) return 'Não informada';
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+        age--;
+    }
+    if (age === 0) {
+        let months = (today.getFullYear() - birth.getFullYear()) * 12 + (today.getMonth() - birth.getMonth());
+        return `${months} meses`;
+    }
+    return `${age} anos`;
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('pt-BR') + ' às ' + date.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+  };
+
+  const getReferenceValueText = (organName) => {
+    if (!patient || !referenceValues) return null;
+    const ref = referenceValues.find(rv => 
+        rv.organ === organName && 
+        rv.species === patient.species
+    );
+    if (ref && ref.min_value !== undefined && ref.max_value !== undefined) {
+        return `Valor de referência: de ${ref.min_value} a ${ref.max_value} ${ref.unit}`;
+    }
+    return null;
+  };
+
   // --- DOCX HELPERS ---
   const dataURLToUint8Array = (dataURL) => {
     const base64 = dataURL.split(',')[1];
@@ -147,12 +188,13 @@ export default function ExamPageV2() {
   const exportToDocx = async () => {
     try {
       await saveExam();
-      const settings = await db.getSettings();
+      // Recarregar settings
+      const currentSettings = await db.getSettings();
       const headerChildren = [];
 
-      if (settings.letterhead_path?.startsWith('data:image')) {
-         const dims = await getImageSize(settings.letterhead_path, 600);
-         const imgData = dataURLToUint8Array(settings.letterhead_path);
+      if (currentSettings.letterhead_path?.startsWith('data:image')) {
+         const dims = await getImageSize(currentSettings.letterhead_path, 600);
+         const imgData = dataURLToUint8Array(currentSettings.letterhead_path);
          headerChildren.push(new Paragraph({
              children: [new ImageRun({ 
                  data: imgData, 
@@ -163,15 +205,18 @@ export default function ExamPageV2() {
          }));
       } else {
          headerChildren.push(new Paragraph({
-             children: [new TextRun({ text: settings.clinic_name || 'LAUDO', bold: true, size: 28 })],
+             children: [new TextRun({ text: currentSettings.clinic_name || 'LAUDO', bold: true, size: 28 })],
              alignment: AlignmentType.CENTER,
          }));
       }
 
       const t = (txt) => translate(txt, reportLanguage);
+      const age = calculateAge(patient.birth_date);
+      
       const docChildren = [
         new Paragraph({ text: `${t('Paciente')}: ${patient.name}`, heading: HeadingLevel.HEADING_2 }),
-        new Paragraph({ text: `${t('Tutor')}: ${patient.owner_name || '-'} • ${t('Raça')}: ${patient.breed}` }),
+        new Paragraph({ text: `${t('Tutor')}: ${patient.owner_name || '-'} • ${t('Raça')}: ${patient.breed} • ${t('Idade')}: ${age}` }),
+        new Paragraph({ text: `${t('Peso')}: ${examWeight || patient?.weight}kg • Data: ${formatDate(exam.exam_date)}` }),
         new Paragraph({ text: ' ' }),
         new Paragraph({ text: t('LAUDO'), heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER }),
         new Paragraph({ text: ' ' }),
@@ -190,6 +235,15 @@ export default function ExamPageV2() {
                 txt.split('\n').forEach(line => {
                     docChildren.push(new Paragraph({ children: parseText(line) }));
                 });
+                
+                // NOVO: Adicionar Referência no DOCX
+                const refText = getReferenceValueText(data.organ_name);
+                if (refText) {
+                    docChildren.push(new Paragraph({ 
+                        children: [new TextRun({ text: refText, color: "666666", size: 20 })], // Texto cinza e menor
+                        spacing: { before: 60 } 
+                    }));
+                }
             }
             docChildren.push(new Paragraph({ text: ' ' }));
         }
@@ -280,11 +334,11 @@ export default function ExamPageV2() {
         </div>
       </div>
 
-      {/* ÁREA REDIMENSIONÁVEL (RESTAURADA) */}
+      {/* Grid de 3 Colunas */}
       <div className="flex-1 overflow-hidden no-print">
          <ResizablePanelGroup direction="horizontal">
             
-            {/* PAINEL 1: IMAGENS (REDIMENSIONÁVEL) */}
+            {/* PAINEL 1: IMAGENS */}
             <ResizablePanel defaultSize={20} minSize={15} maxSize={50} className="border-r bg-muted/10">
                 <div className="h-full flex flex-col">
                   <div className="p-2 border-b flex justify-between items-center">
@@ -309,7 +363,7 @@ export default function ExamPageV2() {
 
             <ResizableHandle />
 
-            {/* PAINEL 2: EDITOR (REDIMENSIONÁVEL) */}
+            {/* PAINEL 2: EDITOR */}
             <ResizablePanel defaultSize={60} minSize={30}>
                 <div className="h-full p-4 bg-background">
                     {currentOrgan ? (
@@ -320,7 +374,7 @@ export default function ExamPageV2() {
 
             <ResizableHandle />
 
-            {/* PAINEL 3: ROTEIRO (REDIMENSIONÁVEL) */}
+            {/* PAINEL 3: ROTEIRO */}
             <ResizablePanel defaultSize={20} minSize={15} maxSize={30} className="border-l bg-muted/10">
                 <div className="h-full flex flex-col">
                    <div className="p-2 border-b"><span className="text-xs font-bold text-muted-foreground">ROTEIRO</span></div>
@@ -340,19 +394,52 @@ export default function ExamPageV2() {
          </ResizablePanelGroup>
       </div>
       
+      {/* ÁREA DE IMPRESSÃO (PDF) - ATUALIZADA */}
       <div id="printable-report" className="hidden print:block p-8 font-serif">
-         <div className="text-center mb-6 border-b pb-4">
-            <h1 className="text-2xl font-bold uppercase">Laudo Veterinário</h1>
-            <p>{patient.name} - {patient.breed}</p>
+         {/* NOVO: Cabeçalho com Timbrado */}
+         <div className="mb-6 text-center">
+            {settings?.letterhead_path?.startsWith('data:image') ? (
+                <img src={settings.letterhead_path} className="w-full max-h-40 object-contain mb-4" alt="Cabeçalho" />
+            ) : (
+                <h1 className="text-2xl font-bold uppercase border-b pb-2">{settings?.clinic_name || 'LAUDO VETERINÁRIO'}</h1>
+            )}
+            
+            {/* NOVO: Dados do Paciente Completos */}
+            <div className="text-left text-sm mt-4 border-b pb-4 space-y-1">
+                <div className="grid grid-cols-2">
+                    <p><strong>Paciente:</strong> {patient.name}</p>
+                    <p><strong>Espécie:</strong> {patient.species}</p>
+                </div>
+                <div className="grid grid-cols-2">
+                    <p><strong>Raça:</strong> {patient.breed}</p>
+                    <p><strong>Idade:</strong> {calculateAge(patient.birth_date)}</p>
+                </div>
+                <div className="grid grid-cols-2">
+                    <p><strong>Tutor:</strong> {patient.owner_name}</p>
+                    <p><strong>Data:</strong> {formatDate(exam.exam_date)}</p>
+                </div>
+            </div>
          </div>
+         
+         <h2 className="text-xl font-bold text-center mb-6">LAUDO</h2>
+
          {organsData.map((o, i) => o.report_text && (
-            <div key={i} className="mb-4">
-               <h3 className="font-bold text-lg border-b mb-1">{o.organ_name}</h3>
-               <p className="whitespace-pre-wrap text-justify">{o.report_text}</p>
+            <div key={i} className="mb-4 avoid-break">
+               <h3 className="font-bold text-lg mb-1">{o.organ_name}</h3>
+               <p className="whitespace-pre-wrap text-justify text-sm leading-relaxed">{o.report_text}</p>
+               
+               {/* NOVO: Valor de Referência (Só aparece se existir) */}
+               {getReferenceValueText(o.organ_name) && (
+                   <p className="text-xs text-gray-500 mt-1 italic">
+                       {getReferenceValueText(o.organ_name)}
+                   </p>
+               )}
             </div>
          ))}
+         
          {examImages.length > 0 && (
             <div className="mt-6 page-break-before">
+               <h3 className="font-bold text-center mb-4">IMAGENS</h3>
                <div className="grid grid-cols-2 gap-4">
                   {examImages.map(img => <img key={img.id} src={img.data} className="w-full object-contain h-48 border-0"/>)}
                </div>
