@@ -41,6 +41,12 @@ export default function ExamPageV2() {
 
   useEffect(() => { loadExamData(); }, [examId]);
 
+  const toLocalISO = (dateObj) => {
+    const tzOffset = dateObj.getTimezoneOffset() * 60000;
+    const localISOTime = (new Date(dateObj - tzOffset)).toISOString().slice(0, 16);
+    return localISOTime;
+  };
+
   const loadExamData = async () => {
     try {
       const examRes = await db.getExam(examId);
@@ -49,14 +55,14 @@ export default function ExamPageV2() {
       setExam(examRes);
       setExamWeight(examRes.exam_weight || '');
       
-      // Lógica de Data/Hora Automática
-      let dateToUse = new Date(); // Padrão: Agora
+      let initialDate = new Date();
       if (examRes.exam_date) {
-        dateToUse = new Date(examRes.exam_date); // Se existe salvo, usa o salvo
+        const savedDate = new Date(examRes.exam_date);
+        if (!isNaN(savedDate.getTime())) {
+            initialDate = savedDate;
+        }
       }
-      // Ajuste para o input local (fuso horário)
-      const localIso = new Date(dateToUse.getTime() - (dateToUse.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
-      setExamDateTime(localIso);
+      setExamDateTime(toLocalISO(initialDate));
 
       setExamImages(examRes.images || []);
 
@@ -131,24 +137,18 @@ export default function ExamPageV2() {
     setOrgansData(newOrgans);
   };
 
-  // --- HELPERS ---
-
-  // Nova Lógica de Idade (Baseada no Ano)
   const calculateAge = (patient) => {
     if (patient.birth_year) {
         const currentYear = new Date().getFullYear();
         const age = currentYear - patient.birth_year;
-        return age === 0 ? '< 1 ano' : `${age} anos`;
+        return age <= 0 ? '< 1 ano' : `${age} anos`;
     }
-    // Fallback para o sistema antigo de data completa
     if (patient.birth_date) {
         const today = new Date();
         const birth = new Date(patient.birth_date);
         let age = today.getFullYear() - birth.getFullYear();
         const m = today.getMonth() - birth.getMonth();
-        if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
-            age--;
-        }
+        if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) { age--; }
         return `${age} anos`;
     }
     return 'Não informada';
@@ -162,10 +162,7 @@ export default function ExamPageV2() {
 
   const getReferenceValueText = (organName) => {
     if (!patient || !referenceValues) return null;
-    const ref = referenceValues.find(rv => 
-        rv.organ === organName && 
-        rv.species === patient.species
-    );
+    const ref = referenceValues.find(rv => rv.organ === organName && rv.species === patient.species);
     if (ref && ref.min_value !== undefined && ref.max_value !== undefined) {
         return `Valor de referência: de ${ref.min_value} a ${ref.max_value} ${ref.unit}`;
     }
@@ -214,10 +211,7 @@ export default function ExamPageV2() {
          const dims = await getImageSize(currentSettings.letterhead_path, 600);
          const imgData = dataURLToUint8Array(currentSettings.letterhead_path);
          headerChildren.push(new Paragraph({
-             children: [new ImageRun({ 
-                 data: imgData, 
-                 transformation: { width: dims.width, height: dims.height } 
-             })],
+             children: [new ImageRun({ data: imgData, transformation: { width: dims.width, height: dims.height } })],
              alignment: AlignmentType.CENTER,
              spacing: { after: 200 }
          }));
@@ -229,7 +223,7 @@ export default function ExamPageV2() {
       }
 
       const t = (txt) => translate(txt, reportLanguage);
-      const age = calculateAge(patient); // Usa a nova função de idade
+      const age = calculateAge(patient);
       const dateTimeStr = formatDateTimeText(examDateTime);
       
       const docChildren = [
@@ -279,10 +273,7 @@ export default function ExamPageV2() {
                     children: [
                         new Paragraph({
                             alignment: AlignmentType.CENTER,
-                            children: [new ImageRun({ 
-                                data: dataURLToUint8Array(img.data), 
-                                transformation: { width: dims.width, height: dims.height } 
-                            })]
+                            children: [new ImageRun({ data: dataURLToUint8Array(img.data), transformation: { width: dims.width, height: dims.height } })],
                         }),
                         new Paragraph({ text: " " }) 
                     ],
@@ -327,7 +318,7 @@ export default function ExamPageV2() {
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       
-      {/* Header */}
+      {/* Header UI (Não sai na impressão) */}
       <div className="h-14 border-b flex items-center justify-between px-4 bg-card shrink-0 no-print">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')}><ArrowLeft className="h-5 w-5"/></Button>
@@ -337,13 +328,7 @@ export default function ExamPageV2() {
                <span>{patient.species}</span><span>•</span>
                <Input className="h-6 w-16 text-xs px-1" placeholder="Peso" value={examWeight} onChange={e => setExamWeight(e.target.value)} /> kg
                <span className="ml-2 border-l pl-2">Data:</span>
-               {/* CAMPO AUMENTADO */}
-               <Input 
-                 type="datetime-local" 
-                 className="h-6 w-auto min-w-[190px] text-xs px-1" 
-                 value={examDateTime} 
-                 onChange={e => setExamDateTime(e.target.value)} 
-               />
+               <Input type="datetime-local" className="h-6 w-auto min-w-[220px] text-xs px-1" value={examDateTime} onChange={e => setExamDateTime(e.target.value)} />
             </div>
           </div>
         </div>
@@ -360,7 +345,7 @@ export default function ExamPageV2() {
         </div>
       </div>
 
-      {/* Grid */}
+      {/* Grid UI (Não sai na impressão) */}
       <div className="flex-1 overflow-hidden no-print">
          <ResizablePanelGroup direction="horizontal">
             <ResizablePanel defaultSize={20} minSize={15} maxSize={50} className="border-r bg-muted/10">
@@ -411,47 +396,81 @@ export default function ExamPageV2() {
          </ResizablePanelGroup>
       </div>
       
-      {/* PDF PRINT AREA */}
-      <div id="printable-report" className="hidden print:block p-8 font-serif">
-         <div className="mb-6 text-center">
-            {settings?.letterhead_path?.startsWith('data:image') ? (
-                <img src={settings.letterhead_path} className="w-full max-h-40 object-contain mb-4" alt="Cabeçalho" />
-            ) : (
-                <h1 className="text-2xl font-bold uppercase border-b pb-2">{settings?.clinic_name || 'LAUDO VETERINÁRIO'}</h1>
-            )}
-            <div className="text-left text-sm mt-4 border-b pb-4 space-y-1">
-                <div className="grid grid-cols-2">
-                    <p><strong>Paciente:</strong> {patient.name}</p>
-                    <p><strong>Espécie:</strong> {patient.species}</p>
-                </div>
-                <div className="grid grid-cols-2">
-                    <p><strong>Raça:</strong> {patient.breed}</p>
-                    <p><strong>Idade:</strong> {calculateAge(patient)}</p>
-                </div>
-                <div className="grid grid-cols-2">
-                    <p><strong>Tutor:</strong> {patient.owner_name}</p>
-                    <p><strong>Data:</strong> {formatDateTimeText(examDateTime)}</p>
-                </div>
-            </div>
-         </div>
-         <h2 className="text-xl font-bold text-center mb-6">LAUDO</h2>
-         {organsData.map((o, i) => o.report_text && (
-            <div key={i} className="mb-4 avoid-break">
-               <h3 className="font-bold text-lg mb-1">{o.organ_name}</h3>
-               <p className="whitespace-pre-wrap text-justify text-sm leading-relaxed">{o.report_text}</p>
-               {getReferenceValueText(o.organ_name) && (
-                   <p className="text-xs text-gray-500 mt-1 italic">{getReferenceValueText(o.organ_name)}</p>
-               )}
-            </div>
-         ))}
-         {examImages.length > 0 && (
-            <div className="mt-6 page-break-before">
-               <h3 className="font-bold text-center mb-4">IMAGENS</h3>
-               <div className="grid grid-cols-2 gap-4">
-                  {examImages.map(img => <img key={img.id} src={img.data} className="w-full object-contain h-48 border-0"/>)}
-               </div>
-            </div>
-         )}
+      {/* ============ ÁREA DE IMPRESSÃO (PDF) ============ */}
+      <div id="printable-report">
+         <table className="report-table">
+            {/* CABEÇALHO (Repete em todas as páginas) */}
+            <thead>
+               <tr>
+                  <td className="report-header-cell">
+                     <div className="print-header-content">
+                        {settings?.letterhead_path?.startsWith('data:image') ? (
+                            <img src={settings.letterhead_path} style={{width: '100%', maxHeight: '4cm', objectFit: 'contain'}} alt="Cabeçalho" />
+                        ) : (
+                            <h1 className="text-2xl font-bold uppercase text-center border-b pb-2">{settings?.clinic_name || 'LAUDO VETERINÁRIO'}</h1>
+                        )}
+                     </div>
+                  </td>
+               </tr>
+            </thead>
+
+            {/* CONTEÚDO */}
+            <tbody>
+               <tr>
+                  <td className="report-content-cell">
+                     {/* Dados do Paciente */}
+                     <div className="border-b pb-4 mb-6 text-sm space-y-1">
+                        <div className="grid grid-cols-2 gap-4">
+                            <p><strong>Paciente:</strong> {patient.name}</p>
+                            <p><strong>Espécie:</strong> {patient.species}</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <p><strong>Raça:</strong> {patient.breed}</p>
+                            <p><strong>Idade:</strong> {calculateAge(patient)}</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <p><strong>Tutor:</strong> {patient.owner_name}</p>
+                            <p><strong>Data:</strong> {formatDateTimeText(examDateTime)}</p>
+                        </div>
+                     </div>
+
+                     <h2 className="text-xl font-bold text-center mb-6 uppercase">Laudo Ultrassonográfico</h2>
+
+                     {organsData.map((o, i) => o.report_text && (
+                        <div key={i} className="mb-6 avoid-break">
+                           <h3 className="font-bold text-lg mb-1">{o.organ_name}</h3>
+                           <p className="whitespace-pre-wrap text-justify text-sm leading-relaxed">{o.report_text}</p>
+                           {getReferenceValueText(o.organ_name) && (
+                               <p className="text-xs text-gray-500 mt-1 italic">{getReferenceValueText(o.organ_name)}</p>
+                           )}
+                        </div>
+                     ))}
+
+                     {examImages.length > 0 && (
+                        <div className="mt-8 avoid-break">
+                           <h3 className="font-bold text-center mb-4">IMAGENS</h3>
+                           <div className="print-image-grid">
+                              {examImages.map(img => (
+                                 <div key={img.id} className="print-image-item">
+                                    <img src={img.data} alt="Exame" />
+                                 </div>
+                              ))}
+                           </div>
+                        </div>
+                     )}
+                  </td>
+               </tr>
+            </tbody>
+
+            {/* RODAPÉ (Opcional, placeholder para espaço) */}
+            <tfoot>
+               <tr>
+                  <td className="report-footer-cell">
+                     <div style={{height: '1cm'}}></div> 
+                  </td>
+               </tr>
+            </tfoot>
+         </table>
       </div>
     </div>
   );
