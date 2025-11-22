@@ -11,6 +11,10 @@ import { PatientCard } from '@/components/PatientCard';
 import { PatientForm } from '@/components/PatientForm';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
+// 🔴 CORREÇÃO: Importar a imagem diretamente do SRC
+// Certifique-se de ter movido a imagem para a pasta 'frontend/src'
+import logoImg from '../logo-tvusvet.png';
+
 export default function HomePage() {
   const [patients, setPatients] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -37,12 +41,9 @@ export default function HomePage() {
     (p.owner_name && p.owner_name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  // 🔴 CORREÇÃO: Agora a função é async para esperar os dados
   const exportBackup = async () => {
     try {
-      // 🔴 CORREÇÃO: await garante que pegamos os dados, não a Promise
       const backup = await db.exportBackup(); 
-      
       const blob = new Blob([backup], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -62,11 +63,14 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-background" data-testid="home-page">
       <div className="container mx-auto p-6">
+        
+        {/* LOGO (Usando a variável importada) */}
         <img 
-          src="logo-tvusvet.png" 
+          src={logoImg} 
           alt="TVUSVET Multi Laudos" 
           className="max-w-[300px] mx-auto mb-8"
         />
+
         <div className="flex justify-between items-center mb-8">
           <div></div>
           <div className="flex gap-3 items-center">

@@ -126,7 +126,6 @@ export default function ExamPage() {
     setOrgansData(newOrgans);
   };
 
-  // Helpers
   const calculateAge = (patient) => {
     if (patient.birth_year) {
         const currentYear = new Date().getFullYear();
@@ -159,7 +158,6 @@ export default function ExamPage() {
     return null;
   };
 
-  // DOCX Helpers
   const dataURLToUint8Array = (dataURL) => {
     const base64 = dataURL.split(',')[1];
     const binary = atob(base64);
@@ -230,12 +228,23 @@ export default function ExamPage() {
             docChildren.push(new Paragraph({ text: t(data.organ_name), heading: HeadingLevel.HEADING_3 }));
             if (data.report_text) {
                 let txt = data.report_text;
-                Object.values(data.measurements).forEach(m => {
-                    txt = txt.replace('{MEDIDA}', `${m.value} ${m.unit}`);
+                
+                // 🔴 CORREÇÃO DE MEDIDAS INTELIGENTE 🔴
+                // 1. Ordena as medidas por ordem de criação (garante sequencia)
+                const sortedMeasurements = Object.keys(data.measurements)
+                    .sort() 
+                    .map(key => data.measurements[key]);
+
+                // 2. Substitui qualquer variação de placeholder ({MEDIDA}, <medidas>, etc)
+                sortedMeasurements.forEach(m => {
+                    // Regex aceita: {MEDIDA}, {medida}, <MEDIDA>, <medida>, <medidas>, {medidas}
+                    txt = txt.replace(/\{(MEDIDA|medida|MEDIDAS|medidas)\}|<(MEDIDA|medida|MEDIDAS|medidas)>/, `${m.value} ${m.unit}`);
                 });
+
                 txt.split('\n').forEach(line => {
                     docChildren.push(new Paragraph({ children: parseText(line) }));
                 });
+                
                 const refText = getReferenceValueText(data.organ_name);
                 if (refText) {
                     docChildren.push(new Paragraph({ 
@@ -296,7 +305,10 @@ export default function ExamPage() {
   if (!exam || !patient) return <div className="flex h-screen items-center justify-center">Carregando...</div>;
 
   const currentOrgan = organsData[currentOrganIndex];
-  const organTemplates = templates.filter(t => t.organ === currentOrgan?.organ_name);
+  const organTemplates = templates.filter(t => 
+    t.organ === currentOrgan?.organ_name && 
+    (t.lang === reportLanguage || (!t.lang && reportLanguage === 'pt'))
+  );
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
@@ -379,7 +391,7 @@ export default function ExamPage() {
          </ResizablePanelGroup>
       </div>
       
-      {/* === PDF COM TABELA === */}
+      {/* ======= ÁREA DE IMPRESSÃO (PDF) ======= */}
       <div id="printable-report">
          <table className="report-table">
             <thead>
@@ -400,24 +412,24 @@ export default function ExamPage() {
                   <td className="report-content-cell">
                      <div className="border-b pb-4 mb-6 text-sm space-y-1 avoid-break">
                         <div className="grid grid-cols-2 gap-4">
-                            <p><strong>Paciente:</strong> {patient.name}</p>
-                            <p><strong>Espécie:</strong> {patient.species}</p>
+                            <p><strong>{translate('Paciente', reportLanguage)}:</strong> {patient.name}</p>
+                            <p><strong>{translate('Espécie', reportLanguage)}:</strong> {translate(patient.species, reportLanguage)}</p>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <p><strong>Raça:</strong> {patient.breed}</p>
-                            <p><strong>Idade:</strong> {calculateAge(patient)}</p>
+                            <p><strong>{translate('Raça', reportLanguage)}:</strong> {patient.breed}</p>
+                            <p><strong>{translate('Idade', reportLanguage)}:</strong> {calculateAge(patient)}</p>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <p><strong>Tutor:</strong> {patient.owner_name}</p>
-                            <p><strong>Data:</strong> {formatDateTimeText(examDateTime)}</p>
+                            <p><strong>{translate('Tutor', reportLanguage)}:</strong> {patient.owner_name}</p>
+                            <p><strong>{translate('Data/Hora', reportLanguage)}:</strong> {formatDateTimeText(examDateTime)}</p>
                         </div>
                      </div>
 
-                     <h2 className="text-xl font-bold text-center mb-6 uppercase avoid-break">Laudo Ultrassonográfico</h2>
+                     <h2 className="text-xl font-bold text-center mb-6 uppercase avoid-break">{translate('Laudo Ultrassonográfico', reportLanguage)}</h2>
 
                      {organsData.map((o, i) => o.report_text && (
                         <div key={i} className="mb-6 avoid-break">
-                           <h3 className="font-bold text-lg mb-1">{o.organ_name}</h3>
+                           <h3 className="font-bold text-lg mb-1">{translate(o.organ_name, reportLanguage)}</h3>
                            <p className="whitespace-pre-wrap text-justify text-sm leading-relaxed">{o.report_text}</p>
                            {getReferenceValueText(o.organ_name) && (
                                <p className="text-xs text-gray-500 mt-1 italic">{getReferenceValueText(o.organ_name)}</p>
@@ -427,7 +439,7 @@ export default function ExamPage() {
 
                      {examImages.length > 0 && (
                         <div className="mt-8">
-                           <h3 className="font-bold text-center mb-4 avoid-break">IMAGENS</h3>
+                           <h3 className="font-bold text-center mb-4 avoid-break">{translate('IMAGENS', reportLanguage)}</h3>
                            <div className="print-image-grid">
                               {examImages.map(img => (
                                  <div key={img.id} className="print-image-item">
