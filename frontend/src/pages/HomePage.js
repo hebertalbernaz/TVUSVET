@@ -22,14 +22,14 @@ export default function HomePage() {
     loadPatients();
   }, []);
 
-const loadPatients = async () => { // Novo (Async)
-  try {
-    const allPatients = await db.getPatients();
-    setPatients(allPatients);
-  } catch (error) {
-    console.error(error);
-  }
-};
+  const loadPatients = async () => {
+    try {
+      const allPatients = await db.getPatients();
+      setPatients(allPatients);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const filteredPatients = patients.filter(p =>
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -37,9 +37,10 @@ const loadPatients = async () => { // Novo (Async)
     (p.owner_name && p.owner_name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const exportBackup = () => {
+  // CORREÇÃO AQUI: Adicionado 'async' e 'await' para não salvar [object Promise]
+  const exportBackup = async () => {
     try {
-      const backup = db.exportBackup();
+      const backup = await db.exportBackup(); // Espera os dados chegarem
       const blob = new Blob([backup], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -51,6 +52,7 @@ const loadPatients = async () => { // Novo (Async)
       URL.revokeObjectURL(url);
       toast.success('Backup exportado com sucesso!');
     } catch (error) {
+      console.error(error);
       toast.error('Erro ao exportar backup');
     }
   };
@@ -59,7 +61,7 @@ const loadPatients = async () => { // Novo (Async)
     <div className="min-h-screen bg-background" data-testid="home-page">
       <div className="container mx-auto p-6">
         <img 
-          src="/logo-tvusvet.png" 
+          src="logo-tvusvet.png" 
           alt="TVUSVET Multi Laudos" 
           className="max-w-[300px] mx-auto mb-8"
         />

@@ -8,7 +8,7 @@ export const ECHOCARDIOGRAM_STRUCTURES = [
   {
     id: 'analise_2d',
     label: 'Análise 2D (Modo-B)',
-    measurements: []  // Descriptive analysis, no specific measurements
+    measurements: []
   },
   {
     id: 'lv_m_mode',
@@ -70,7 +70,7 @@ export const ECHOCARDIOGRAM_STRUCTURES = [
   {
     id: 'echo_conclusion',
     label: 'Conclusão Ecocardiográfica',
-    measurements: []  // Summary section, no measurements
+    measurements: []
   }
 ];
 
@@ -106,22 +106,14 @@ export const ECG_STRUCTURES = [
   {
     id: 'ecg_conclusion',
     label: 'Conclusão Ritmológica',
-    measurements: []  // Summary section
+    measurements: []
   }
 ];
 
 // ============= RADIOGRAPHY STRUCTURES =============
 export const RADIOGRAPHY_STRUCTURES = [
-  {
-    id: 'projections',
-    label: 'Projeções Realizadas',
-    measurements: []  // Descriptive: LL Direita, LL Esquerda, VD, etc.
-  },
-  {
-    id: 'thorax_lungs',
-    label: 'Tórax - Campos Pulmonares',
-    measurements: []  // Generic measurements if needed (nodule size, etc.)
-  },
+  { id: 'projections', label: 'Projeções Realizadas', measurements: [] },
+  { id: 'thorax_lungs', label: 'Tórax - Campos Pulmonares', measurements: [] },
   {
     id: 'thorax_heart',
     label: 'Tórax - Silhueta Cardíaca',
@@ -129,85 +121,64 @@ export const RADIOGRAPHY_STRUCTURES = [
       { id: 'vhs', label: 'VHS (Vertebral Heart Score)', unit: 'v', description: 'Escore Cardíaco Vertebral' }
     ]
   },
-  {
-    id: 'thorax_trachea',
-    label: 'Tórax - Traqueia e Vasos',
-    measurements: []
-  },
-  {
-    id: 'abdomen_serosa',
-    label: 'Abdômen - Serosas e Fígado',
-    measurements: []
-  },
-  {
-    id: 'abdomen_spleen_kidney',
-    label: 'Abdômen - Baço e Rins',
-    measurements: []
-  },
-  {
-    id: 'abdomen_gi',
-    label: 'Abdômen - Trato Gastrointestinal',
-    measurements: []
-  },
-  {
-    id: 'musculoskeletal',
-    label: 'Sistema Musculoesquelético',
-    measurements: []
-  },
-  {
-    id: 'radio_conclusion',
-    label: 'Conclusão Radiográfica',
-    measurements: []
-  }
+  { id: 'thorax_trachea', label: 'Tórax - Traqueia e Vasos', measurements: [] },
+  { id: 'abdomen_serosa', label: 'Abdômen - Serosas e Fígado', measurements: [] },
+  { id: 'abdomen_spleen_kidney', label: 'Abdômen - Baço e Rins', measurements: [] },
+  { id: 'abdomen_gi', label: 'Abdômen - Trato Gastrointestinal', measurements: [] },
+  { id: 'musculoskeletal', label: 'Sistema Musculoesquelético', measurements: [] },
+  { id: 'radio_conclusion', label: 'Conclusão Radiográfica', measurements: [] }
 ];
 
 // ============= TOMOGRAPHY STRUCTURES =============
 export const TOMOGRAPHY_STRUCTURES = [
-  {
-    id: 'study_info',
-    label: 'Informações do Estudo',
-    measurements: []  // Descriptive: Region, Planes, Contrast usage
-  },
-  {
-    id: 'findings_lungs',
-    label: 'Achados - Parênquima Pulmonar',
-    measurements: []  // Ad-hoc measurements (nodule HU, size)
-  },
-  {
-    id: 'findings_mediastinum',
-    label: 'Achados - Mediastino',
-    measurements: []
-  },
-  {
-    id: 'findings_bone',
-    label: 'Achados - Estruturas Ósseas',
-    measurements: []
-  },
-  {
-    id: 'findings_soft_tissue',
-    label: 'Achados - Tecidos Moles',
-    measurements: []
-  },
-  {
-    id: 'tomo_conclusion',
-    label: 'Conclusão Tomográfica',
-    measurements: []
-  }
+  { id: 'study_info', label: 'Informações do Estudo', measurements: [] },
+  { id: 'findings_lungs', label: 'Achados - Parênquima Pulmonar', measurements: [] },
+  { id: 'findings_mediastinum', label: 'Achados - Mediastino', measurements: [] },
+  { id: 'findings_bone', label: 'Achados - Estruturas Ósseas', measurements: [] },
+  { id: 'findings_soft_tissue', label: 'Achados - Tecidos Moles', measurements: [] },
+  { id: 'tomo_conclusion', label: 'Conclusão Tomográfica', measurements: [] }
 ];
 
-// ============= ABDOMINAL ULTRASOUND (Original) =============
+// ============= ABDOMINAL ULTRASOUND (ATUALIZADO) =============
 export const ABDOMINAL_ORGANS = [
-  'Estômago', 'Fígado', 'Baço', 'Rim Esquerdo', 'Rim Direito',
-  'Vesícula Urinária', 'Adrenal Esquerda', 'Adrenal Direita',
-  'Duodeno', 'Jejuno', 'Cólon', 'Ceco', 'Íleo', 'Linfonodos'
+  'Estômago', 
+  'Fígado', 
+  'Vesícula Biliar', // ADICIONADO
+  'Baço', 
+  'Rins', // ADICIONADO (Genérico)
+  'Rim Esquerdo', 
+  'Rim Direito',
+  'Vesícula Urinária', // NOME CONFIRMADO
+  'Adrenal Esquerda', 
+  'Adrenal Direita',
+  'Duodeno', 
+  'Jejuno', 
+  'Cólon', 
+  'Ceco', 
+  'Íleo', 
+  'Linfonodos'
 ];
 
-export const REPRODUCTIVE_ORGANS_MALE = ['Próstata', 'Testículo Direito', 'Testículo Esquerdo'];
+export const REPRODUCTIVE_ORGANS_MALE = [
+  'Próstata', 
+  'Testículos', // ADICIONADO (Genérico)
+  'Testículo Direito', 
+  'Testículo Esquerdo'
+];
+
 export const REPRODUCTIVE_ORGANS_MALE_NEUTERED = ['Próstata'];
-export const REPRODUCTIVE_ORGANS_FEMALE = ['Corpo Uterino', 'Corno Uterino Direito', 'Corno Uterino Esquerdo', 'Ovário Direito', 'Ovário Esquerdo'];
+
+export const REPRODUCTIVE_ORGANS_FEMALE = [
+  'Corpo Uterino', 
+  'Corno Uterino Direito', 
+  'Corno Uterino Esquerdo', 
+  'Ovários', // ADICIONADO (Genérico)
+  'Ovário Direito', 
+  'Ovário Esquerdo'
+];
 
 /**
- * Exam type configurations with clinical measurements
+ * Exam type configurations
  */
 export const EXAM_TYPES = {
   ultrasound_abd: {
@@ -215,7 +186,7 @@ export const EXAM_TYPES = {
     name: 'Ultrassom Abdominal',
     icon: '🔊',
     description: 'Exame ultrassonográfico abdominal completo',
-    useGenericMeasurements: true,  // Uses old "Adicionar Medida" system
+    useGenericMeasurements: true,
     getStructures: (patient) => {
       const structures = [...ABDOMINAL_ORGANS];
       if (patient?.sex === 'male') {
@@ -229,7 +200,6 @@ export const EXAM_TYPES = {
           structures.push(...REPRODUCTIVE_ORGANS_FEMALE);
         }
       }
-      // Convert to structure objects for consistency
       return structures.map(name => ({ label: name, measurements: [] }));
     }
   },
@@ -238,7 +208,7 @@ export const EXAM_TYPES = {
     name: 'Ecocardiograma',
     icon: '❤️',
     description: 'Ecocardiografia com Doppler',
-    useGenericMeasurements: false,  // Uses clinical measurement schema
+    useGenericMeasurements: false,
     getStructures: () => ECHOCARDIOGRAM_STRUCTURES
   },
   ecg: {
@@ -254,7 +224,7 @@ export const EXAM_TYPES = {
     name: 'Radiografia',
     icon: '📷',
     description: 'Exame radiográfico',
-    useGenericMeasurements: true,  // Hybrid: some structures have specific measurements, others allow ad-hoc
+    useGenericMeasurements: true,
     getStructures: () => RADIOGRAPHY_STRUCTURES
   },
   tomography: {
@@ -262,14 +232,11 @@ export const EXAM_TYPES = {
     name: 'Tomografia',
     icon: '🔬',
     description: 'Tomografia computadorizada',
-    useGenericMeasurements: true,  // Always allows ad-hoc measurements
+    useGenericMeasurements: true,
     getStructures: () => TOMOGRAPHY_STRUCTURES
   }
 };
 
-/**
- * Get structures for a specific exam type
- */
 export function getStructuresForExam(examType, patient = null) {
   const config = EXAM_TYPES[examType];
   if (!config) {
@@ -279,24 +246,15 @@ export function getStructuresForExam(examType, patient = null) {
   return config.getStructures(patient);
 }
 
-/**
- * Get exam type display name
- */
 export function getExamTypeName(examType) {
   const config = EXAM_TYPES[examType];
   return config ? config.name : 'Exame';
 }
 
-/**
- * Get all exam types as array for selection
- */
 export function getAllExamTypes() {
   return Object.values(EXAM_TYPES);
 }
 
-/**
- * Check if exam type uses generic measurements
- */
 export function usesGenericMeasurements(examType) {
   const config = EXAM_TYPES[examType];
   return config ? config.useGenericMeasurements : true;

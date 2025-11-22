@@ -21,32 +21,26 @@ export default function SettingsPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    loadSettings();
-    loadTemplates();
-    loadReferenceValues();
-  }, []);
-
-  useEffect(() => {
-    // 🔴 MUDANÇA 5: Agrupamos as chamadas em uma função async dentro do useEffect
-    const loadAllData = async () => {
-      await loadSettings();
-      await loadTemplates();
-      await loadReferenceValues();
-    };
     loadAllData();
   }, []);
 
-const loadSettings = async () => {
+  const loadAllData = async () => {
+    await loadSettings();
+    await loadTemplates();
+    await loadReferenceValues();
+  };
+
+  const loadSettings = async () => {
     const s = await db.getSettings();
     setSettings(s);
   };
 
-const loadTemplates = async () => {
+  const loadTemplates = async () => {
     const t = await db.getTemplates();
     setTemplates(t);
   };
 
-const loadReferenceValues = async () => {
+  const loadReferenceValues = async () => {
     const rv = await db.getReferenceValues();
     setReferenceValues(rv);
   };
@@ -61,27 +55,32 @@ const loadReferenceValues = async () => {
     }
   };
 
+  // CORREÇÃO AQUI: Função Async para garantir a importação antes de recarregar
   const importBackup = (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
-        const success = db.importBackup(e.target.result);
+        // IMPORTANTE: await aqui para esperar gravar no banco
+        const success = await db.importBackup(e.target.result); 
+        
         if (success) {
           toast.success('Backup importado com sucesso!');
-          loadTemplates();
-          loadReferenceValues();
-          loadSettings();
+          // Recarrega os dados na tela para mostrar os textos importados
+          await loadAllData(); 
         } else {
-          toast.error('Erro ao importar backup');
+          toast.error('Erro ao importar: Arquivo corrompido ou inválido');
         }
       } catch (error) {
-        toast.error('Arquivo inválido');
+        console.error(error);
+        toast.error('Arquivo inválido (Verifique se não está vazio ou corrompido)');
       }
     };
     reader.readAsText(file);
+    // Limpa o input para permitir selecionar o mesmo arquivo novamente se falhar
+    event.target.value = ''; 
   };
 
   if (!settings) {
@@ -107,7 +106,7 @@ const loadReferenceValues = async () => {
               />
               <Button variant="outline" as="span" className="cursor-pointer">
                 <Upload className="mr-2 h-4 w-4" />
-                Importar Backup
+                Importar Backup (JSON)
               </Button>
             </label>
             <Button onClick={() => navigate('/')} variant="ghost">
@@ -121,7 +120,7 @@ const loadReferenceValues = async () => {
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="clinic">Dados da Clínica</TabsTrigger>
             <TabsTrigger value="letterhead">Timbrado</TabsTrigger>
-            <TabsTrigger value="backup">Backup</TabsTrigger>
+            <TabsTrigger value="backup">Backup Seguro</TabsTrigger>
             <TabsTrigger value="templates">Textos Padrão</TabsTrigger>
             <TabsTrigger value="references">Valores de Referência</TabsTrigger>
           </TabsList>
@@ -131,7 +130,7 @@ const loadReferenceValues = async () => {
           </TabsContent>
 
           <TabsContent value="backup">
-            <BackupSettings settings={settings} onSave={saveSettings} />
+            <BackupSettings settings={settings} onSave={saveSettings} onImportSuccess={loadAllData} />
           </TabsContent>
 
           <TabsContent value="letterhead">
@@ -212,7 +211,7 @@ function ClinicSettings({ settings, onSave }) {
   );
 }
 
-function BackupSettings({ settings, onSave }) {
+function BackupSettings({ settings, onSave, onImportSuccess }) {
   const [useSavedPassphrase, setUseSavedPassphrase] = useState(!!settings.saved_backup_passphrase);
   const [passphrase, setPassphrase] = useState('');
 
@@ -258,6 +257,7 @@ function BackupSettings({ settings, onSave }) {
         const ok = await db.importBackup(json);
         if (ok) {
           toast.success('Backup importado com sucesso!');
+          if (onImportSuccess) onImportSuccess();
         } else {
           toast.error('Falha ao importar backup');
         }
@@ -266,6 +266,7 @@ function BackupSettings({ settings, onSave }) {
       }
     };
     reader.readAsText(file);
+    event.target.value = ''; 
   };
 
   const savePassphrase = async () => {
@@ -292,8 +293,8 @@ function BackupSettings({ settings, onSave }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Backup</CardTitle>
-        <CardDescription>Exporte e importe backups criptografados</CardDescription>
+        <CardTitle>Backup Seguro (.enc)</CardTitle>
+        <CardDescription>Exporte e importe backups criptografados com senha</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
@@ -316,8 +317,10 @@ function BackupSettings({ settings, onSave }) {
             <Label htmlFor="use-saved">Usar senha salva</Label>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={handleExport}>Exportar Backup Criptografado</Button>
+        <div className="flex gap-2 pt-4">
+          <Button onClick={handleExport}>
+            <Upload className="mr-2 h-4 w-4" /> Exportar Backup Criptografado
+          </Button>
           <label>
             <input type="file" accept=".enc,.tvusvet.enc" onChange={handleImport} className="hidden" />
             <Button as="span" variant="outline">Importar Backup Criptografado</Button>

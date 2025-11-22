@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +18,7 @@ import {
 import { getStructuresForExam, getExamTypeName } from '@/lib/exam_types';
 import { translate, getAvailableLanguages } from '@/services/translation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'; // IMPORTANTE
 
 export default function ExamPageV2() {
   const { examId } = useParams();
@@ -152,7 +153,6 @@ export default function ExamPageV2() {
       if (settings.letterhead_path?.startsWith('data:image')) {
          const dims = await getImageSize(settings.letterhead_path, 600);
          const imgData = dataURLToUint8Array(settings.letterhead_path);
-         
          headerChildren.push(new Paragraph({
              children: [new ImageRun({ 
                  data: imgData, 
@@ -197,7 +197,6 @@ export default function ExamPageV2() {
 
       if (examImages.length > 0) {
         docChildren.push(new Paragraph({ children: [new PageBreak()] }));
-        
         const rows = [];
         for (let i = 0; i < examImages.length; i += 2) {
             const cells = [];
@@ -217,13 +216,10 @@ export default function ExamPageV2() {
                     ],
                 });
             };
-
             cells.push(await addImgCell(examImages[i]));
             if (i+1 < examImages.length) cells.push(await addImgCell(examImages[i+1]));
-            
             rows.push(new TableRow({ children: cells }));
         }
-        
         docChildren.push(new Table({ 
             rows, 
             width: { size: 100, type: WidthType.PERCENTAGE },
@@ -259,8 +255,8 @@ export default function ExamPageV2() {
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       
-      {/* Header Fixo */}
-      <div className="h-14 border-b flex items-center justify-between px-4 bg-card shrink-0">
+      {/* Header */}
+      <div className="h-14 border-b flex items-center justify-between px-4 bg-card shrink-0 no-print">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')}><ArrowLeft className="h-5 w-5"/></Button>
           <div>
@@ -284,49 +280,64 @@ export default function ExamPageV2() {
         </div>
       </div>
 
-      {/* Grid de 3 Colunas */}
-      <div className="flex-1 grid grid-cols-12 min-h-0">
-        
-        <div className="col-span-2 border-r bg-muted/10 flex flex-col min-h-0">
-          <div className="p-2 border-b flex justify-between items-center">
-             <span className="text-xs font-bold text-muted-foreground">IMAGENS ({examImages.length})</span>
-             <label htmlFor="img-up" className="cursor-pointer bg-primary text-white p-1 rounded hover:opacity-80">
-                <Plus className="h-3 w-3" />
-                <input id="img-up" type="file" multiple accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading}/>
-             </label>
-          </div>
-          <ScrollArea className="flex-1 p-2">
-             <div className="space-y-2">
-               {examImages.map(img => (
-                 <div key={img.id} className="relative group aspect-video bg-black/5 rounded overflow-hidden border">
-                   <img src={img.data} className="w-full h-full object-cover" alt="" />
-                   <button onClick={() => handleDeleteImage(img.id)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded opacity-0 group-hover:opacity-100"><Trash2 className="h-3 w-3" /></button>
-                 </div>
-               ))}
-             </div>
-          </ScrollArea>
-        </div>
+      {/* ÁREA REDIMENSIONÁVEL (RESTAURADA) */}
+      <div className="flex-1 overflow-hidden no-print">
+         <ResizablePanelGroup direction="horizontal">
+            
+            {/* PAINEL 1: IMAGENS (REDIMENSIONÁVEL) */}
+            <ResizablePanel defaultSize={20} minSize={15} maxSize={50} className="border-r bg-muted/10">
+                <div className="h-full flex flex-col">
+                  <div className="p-2 border-b flex justify-between items-center">
+                     <span className="text-xs font-bold text-muted-foreground">IMAGENS ({examImages.length})</span>
+                     <label htmlFor="img-up" className="cursor-pointer bg-primary text-white p-1 rounded hover:opacity-80">
+                        <Plus className="h-3 w-3" />
+                        <input id="img-up" type="file" multiple accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading}/>
+                     </label>
+                  </div>
+                  <ScrollArea className="flex-1 p-2">
+                     <div className="space-y-2">
+                       {examImages.map(img => (
+                         <div key={img.id} className="relative group aspect-video bg-black/5 rounded overflow-hidden border">
+                           <img src={img.data} className="w-full h-full object-cover" alt="" />
+                           <button onClick={() => handleDeleteImage(img.id)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded opacity-0 group-hover:opacity-100"><Trash2 className="h-3 w-3" /></button>
+                         </div>
+                       ))}
+                     </div>
+                  </ScrollArea>
+                </div>
+            </ResizablePanel>
 
-        <div className="col-span-8 flex flex-col min-h-0 bg-background p-4 gap-4">
-          {currentOrgan ? (
-            <OrganEditor organ={currentOrgan} templates={organTemplates} onChange={(field, value) => updateOrganData(currentOrganIndex, field, value)} />
-          ) : <div className="flex items-center justify-center h-full text-muted-foreground">Selecione uma estrutura ao lado</div>}
-        </div>
+            <ResizableHandle />
 
-        <div className="col-span-2 border-l bg-muted/10 flex flex-col min-h-0">
-           <div className="p-2 border-b"><span className="text-xs font-bold text-muted-foreground">ROTEIRO</span></div>
-           <ScrollArea className="flex-1">
-              <div className="flex flex-col">
-                 {organsData.map((organ, idx) => (
-                    <button key={idx} className={`text-left px-3 py-2 text-sm border-b border-transparent hover:bg-white transition-colors flex items-center justify-between ${currentOrganIndex === idx ? 'bg-white font-bold text-primary border-l-4 border-l-primary shadow-sm' : 'text-muted-foreground'} ${organ.report_text ? 'text-green-700' : ''}`} onClick={() => setCurrentOrganIndex(idx)}>
-                      <span className="truncate">{organ.organ_name}</span>
-                      {organ.report_text && <Check className="h-3 w-3" />}
-                    </button>
-                 ))}
-              </div>
-           </ScrollArea>
-        </div>
+            {/* PAINEL 2: EDITOR (REDIMENSIONÁVEL) */}
+            <ResizablePanel defaultSize={60} minSize={30}>
+                <div className="h-full p-4 bg-background">
+                    {currentOrgan ? (
+                        <OrganEditor organ={currentOrgan} templates={organTemplates} onChange={(field, value) => updateOrganData(currentOrganIndex, field, value)} />
+                    ) : <div className="flex items-center justify-center h-full text-muted-foreground">Selecione uma estrutura ao lado</div>}
+                </div>
+            </ResizablePanel>
 
+            <ResizableHandle />
+
+            {/* PAINEL 3: ROTEIRO (REDIMENSIONÁVEL) */}
+            <ResizablePanel defaultSize={20} minSize={15} maxSize={30} className="border-l bg-muted/10">
+                <div className="h-full flex flex-col">
+                   <div className="p-2 border-b"><span className="text-xs font-bold text-muted-foreground">ROTEIRO</span></div>
+                   <ScrollArea className="flex-1">
+                      <div className="flex flex-col">
+                         {organsData.map((organ, idx) => (
+                            <button key={idx} className={`text-left px-3 py-2 text-sm border-b border-transparent hover:bg-white transition-colors flex items-center justify-between ${currentOrganIndex === idx ? 'bg-white font-bold text-primary border-l-4 border-l-primary shadow-sm' : 'text-muted-foreground'} ${organ.report_text ? 'text-green-700' : ''}`} onClick={() => setCurrentOrganIndex(idx)}>
+                              <span className="truncate">{organ.organ_name}</span>
+                              {organ.report_text && <Check className="h-3 w-3" />}
+                            </button>
+                         ))}
+                      </div>
+                   </ScrollArea>
+                </div>
+            </ResizablePanel>
+
+         </ResizablePanelGroup>
       </div>
       
       <div id="printable-report" className="hidden print:block p-8 font-serif">
@@ -368,9 +379,9 @@ function OrganEditor({ organ, templates, onChange }) {
 
   return (
     <>
-        <h2 className="text-2xl font-bold text-primary flex items-center gap-2">{organ.organ_name}</h2>
-        <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
-            <div className="flex flex-col gap-3">
+        <h2 className="text-2xl font-bold text-primary flex items-center gap-2 mb-4">{organ.organ_name}</h2>
+        <div className="grid grid-cols-2 gap-4 h-[calc(100%-3rem)]">
+            <div className="flex flex-col gap-3 h-full">
                 <div className="bg-muted/20 p-3 rounded border">
                     <div className="flex gap-2 mb-2">
                         <Input id="med-val" placeholder="0.0" className="h-8 bg-white" type="number" onKeyDown={e => { if(e.key==='Enter'){ const val = e.currentTarget.value; if(val) { addMeasurement(val, 'cm'); e.currentTarget.value=''; }}}} />
@@ -386,14 +397,14 @@ function OrganEditor({ organ, templates, onChange }) {
                         ))}
                     </div>
                 </div>
-                <div className="flex-1 flex flex-col">
+                <div className="flex-1 flex flex-col min-h-0">
                     <Label className="mb-1">Texto</Label>
                     <Textarea className="flex-1 resize-none font-mono text-base p-4 leading-relaxed shadow-sm" value={text} onChange={e => updateText(e.target.value)} placeholder="Escreva aqui..." />
                     <p className="text-xs text-muted-foreground mt-1">Dica: Use **negrito** e *itálico*.</p>
                 </div>
             </div>
-            <Card className="flex flex-col min-h-0 border-l-4 border-l-primary/20">
-                <CardHeader className="py-2 px-3 bg-muted/20 border-b"><CardTitle className="text-xs">MODELOS</CardTitle></CardHeader>
+            <Card className="flex flex-col h-full border-l-4 border-l-primary/20">
+                <CardHeader className="py-2 px-3 bg-muted/20 border-b shrink-0"><CardTitle className="text-xs">MODELOS</CardTitle></CardHeader>
                 <ScrollArea className="flex-1 bg-muted/5">
                     <div className="p-2 space-y-2">
                         {templates.length > 0 ? templates.map(t => (
