@@ -171,7 +171,6 @@ export default function ExamPageV2() {
     return null;
   };
 
-  // --- DOCX HELPERS ---
   const dataURLToUint8Array = (dataURL) => {
     const base64 = dataURL.split(',')[1];
     const binary = atob(base64);
@@ -237,11 +236,9 @@ export default function ExamPageV2() {
         new Paragraph({ text: ' ' }),
       ];
 
-      getStructuresForExam(exam.exam_type, patient).forEach(struct => {
-        const label = struct.label || struct;
-        const data = organsData.find(o => o.organ_name === label);
-        if (data && (data.report_text || Object.keys(data.measurements).length)) {
-            docChildren.push(new Paragraph({ text: t(label), heading: HeadingLevel.HEADING_3 }));
+      organsData.forEach(data => {
+        if (data.report_text || Object.keys(data.measurements).length) {
+            docChildren.push(new Paragraph({ text: t(data.organ_name), heading: HeadingLevel.HEADING_3 }));
             if (data.report_text) {
                 let txt = data.report_text;
                 Object.values(data.measurements).forEach(m => {
@@ -319,7 +316,6 @@ export default function ExamPageV2() {
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
-      
       <div className="h-14 border-b flex items-center justify-between px-4 bg-card shrink-0 no-print">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')}><ArrowLeft className="h-5 w-5"/></Button>
@@ -396,16 +392,15 @@ export default function ExamPageV2() {
          </ResizablePanelGroup>
       </div>
       
-{/* ÁREA DE IMPRESSÃO (Tabela HTML) */}
+      {/* ======= ÁREA DE IMPRESSÃO (PDF) COM TABELA ======= */}
       <div id="printable-report">
          <table className="report-table">
-            {/* CABEÇALHO (Repete em todas as páginas) */}
             <thead>
                <tr>
                   <td className="report-header-cell">
+                     {/* Timbrado - Repete em cada página */}
                      <div style={{width: '100%', display: 'flex', justifyContent: 'center', marginBottom: '10px'}}>
                         {settings?.letterhead_path?.startsWith('data:image') ? (
-                            /* Altura fixa ajuda o navegador a calcular a quebra de página */
                             <img src={settings.letterhead_path} style={{maxWidth: '90%', maxHeight: '3.5cm', objectFit: 'contain'}} alt="Cabeçalho" />
                         ) : (
                             <h1 className="text-2xl font-bold uppercase text-center border-b pb-2 w-full">{settings?.clinic_name || 'LAUDO VETERINÁRIO'}</h1>
@@ -415,7 +410,6 @@ export default function ExamPageV2() {
                </tr>
             </thead>
 
-            {/* CONTEÚDO */}
             <tbody>
                <tr>
                   <td className="report-content-cell">
