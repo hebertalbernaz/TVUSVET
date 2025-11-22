@@ -37,10 +37,12 @@ export default function HomePage() {
     (p.owner_name && p.owner_name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  // CORREÇÃO AQUI: Adicionado 'async' e 'await' para não salvar [object Promise]
+  // 🔴 CORREÇÃO: Agora a função é async para esperar os dados
   const exportBackup = async () => {
     try {
-      const backup = await db.exportBackup(); // Espera os dados chegarem
+      // 🔴 CORREÇÃO: await garante que pegamos os dados, não a Promise
+      const backup = await db.exportBackup(); 
+      
       const blob = new Blob([backup], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

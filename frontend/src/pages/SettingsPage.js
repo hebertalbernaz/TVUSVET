@@ -55,32 +55,31 @@ export default function SettingsPage() {
     }
   };
 
-  // CORREÇÃO AQUI: Função Async para garantir a importação antes de recarregar
+  // 🔴 CORREÇÃO: Função async para esperar o banco de dados
   const importBackup = (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = async (e) => {
+    reader.onload = async (e) => { // Callback agora é async
       try {
-        // IMPORTANTE: await aqui para esperar gravar no banco
-        const success = await db.importBackup(e.target.result); 
+        // IMPORTANTE: await aqui para garantir que os dados sejam salvos
+        const success = await db.importBackup(e.target.result);
         
         if (success) {
           toast.success('Backup importado com sucesso!');
-          // Recarrega os dados na tela para mostrar os textos importados
+          // Recarrega os dados na tela imediatamente
           await loadAllData(); 
         } else {
-          toast.error('Erro ao importar: Arquivo corrompido ou inválido');
+          toast.error('Erro ao importar backup');
         }
       } catch (error) {
         console.error(error);
-        toast.error('Arquivo inválido (Verifique se não está vazio ou corrompido)');
+        toast.error('Arquivo inválido');
       }
     };
     reader.readAsText(file);
-    // Limpa o input para permitir selecionar o mesmo arquivo novamente se falhar
-    event.target.value = ''; 
+    event.target.value = ''; // Permite importar o mesmo arquivo novamente
   };
 
   if (!settings) {
@@ -218,7 +217,9 @@ function BackupSettings({ settings, onSave, onImportSuccess }) {
   const handleExport = async () => {
     try {
       const { encryptBackup } = await import('@/services/cryptoBackup');
+      // 🔴 CORREÇÃO: Adicionado await aqui também
       const json = await db.exportBackup();
+      
       const finalPass = useSavedPassphrase && settings.saved_backup_passphrase ? settings.saved_backup_passphrase : passphrase;
       if (!finalPass) {
         alert('Defina uma senha para criptografar o backup ou salve uma senha nas configurações.');
@@ -254,10 +255,13 @@ function BackupSettings({ settings, onSave, onImportSuccess }) {
           return;
         }
         const json = await decryptBackup(enc, finalPass);
+        
+        // 🔴 CORREÇÃO: Adicionado await aqui
         const ok = await db.importBackup(json);
+        
         if (ok) {
           toast.success('Backup importado com sucesso!');
-          if (onImportSuccess) onImportSuccess();
+          if (onImportSuccess) onImportSuccess(); // Atualiza a tela
         } else {
           toast.error('Falha ao importar backup');
         }
@@ -266,7 +270,7 @@ function BackupSettings({ settings, onSave, onImportSuccess }) {
       }
     };
     reader.readAsText(file);
-    event.target.value = ''; 
+    event.target.value = '';
   };
 
   const savePassphrase = async () => {
