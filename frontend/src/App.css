@@ -1,9 +1,8 @@
-/* App.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* --- REGRAS GERAIS --- */
+/* --- ESTILOS GERAIS --- */
 .App {
   min-height: 100vh;
 }
@@ -12,13 +11,13 @@
 @media print {
   
   /* 1. Limpa as margens da folha */
-  /* Isso remove "localhost", data, hora e número de página do navegador */
+  /* Remove "localhost", data e hora do navegador */
   @page {
     margin: 0mm;
     size: auto;
   }
 
-  /* 2. Esconde a interface do programa */
+  /* 2. Oculta a interface do programa */
   body * {
     visibility: hidden;
   }
