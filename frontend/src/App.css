@@ -1,35 +1,43 @@
-/* Fontes e resets básicos do App */
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+/* App.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
+/* --- REGRAS GERAIS --- */
 .App {
   min-height: 100vh;
 }
 
-/* --- REGRAS DE IMPRESSÃO PDF --- */
+/* --- REGRAS DE IMPRESSÃO (PDF) --- */
 @media print {
-  /* 1. Limpa a folha (remove data/hora/url do navegador) */
+  
+  /* 1. Limpa as margens da folha */
+  /* Isso remove "localhost", data, hora e número de página do navegador */
   @page {
-    margin: 0;
+    margin: 0mm;
     size: auto;
   }
 
-  /* 2. Oculta TUDO que não seja o relatório */
-  body {
+  /* 2. Esconde a interface do programa */
+  body * {
     visibility: hidden;
-    background: white;
   }
-  
-  /* Garante que a interface do usuário suma */
+
+  /* Garante que elementos de navegação sumam */
   .no-print, .no-print * {
     display: none !important;
   }
 
-  /* 3. Mostra e posiciona o Relatório */
-  #printable-report {
+  /* 3. Mostra APENAS o relatório */
+  #printable-report, #printable-report * {
     visibility: visible;
+  }
+
+  /* Posiciona o relatório para ocupar a folha inteira */
+  #printable-report {
     position: absolute;
-    top: 0;
     left: 0;
+    top: 0;
     width: 100%;
     margin: 0;
     padding: 0;
@@ -38,20 +46,15 @@
     font-family: 'Times New Roman', serif;
     font-size: 12pt;
     line-height: 1.5;
-    /* Importante: Permite que o conteúdo flua e crie páginas */
-    overflow: visible; 
+    z-index: 9999;
   }
 
-  /* Garante que o conteúdo interno do relatório seja visível */
-  #printable-report * {
-    visibility: visible;
-  }
-
-  /* 4. TABELA DE REPETIÇÃO DE CABEÇALHO */
-  /* A mágica acontece aqui: o navegador repete thead em cada página */
+  /* 4. TABELA PARA REPETIR CABEÇALHO */
+  /* O navegador repete automaticamente o <thead> em cada nova página */
   .report-table {
     width: 100%;
     border-collapse: collapse;
+    border: none;
   }
 
   .report-table thead {
@@ -62,46 +65,53 @@
     display: table-row-group;
   }
 
-  /* Espaçamento do cabeçalho */
+  .report-table tr {
+    page-break-inside: auto;
+  }
+
+  /* Ajuste do Cabeçalho (Timbrado) */
   .report-header-cell {
-    padding-top: 0.5cm;
+    padding-top: 0.5cm; /* Espaço no topo do papel */
     text-align: center;
+    border: none;
   }
 
-  /* Conteúdo com margens de papel A4 */
+  /* Ajuste do Conteúdo (Margens do texto) */
   .report-content-cell {
-    padding: 0.5cm 2cm; /* Topo/Baixo  Esquerda/Direita */
+    padding: 0.5cm 2cm 1cm 2cm; /* Cima | Dir | Baixo | Esq */
     vertical-align: top;
+    border: none;
   }
 
-  /* Imagens */
+  /* 5. IMAGENS */
   .print-image-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 15px;
+    gap: 10px;
     page-break-inside: avoid;
+    margin-top: 20px;
   }
   
   .print-image-item {
-    page-break-inside: avoid;
     text-align: center;
+    page-break-inside: avoid;
     break-inside: avoid;
   }
 
   .print-image-item img {
-    max-height: 250px;
+    max-height: 220px;
     width: auto;
     max-width: 100%;
     object-fit: contain;
+    border: none;
   }
 
-  /* Evita quebrar parágrafos ao meio */
+  /* Utilitários de quebra */
   .avoid-break {
     page-break-inside: avoid;
     break-inside: avoid;
   }
 
-  /* Força quebra de página antes das imagens se necessário */
   .page-break-before {
     page-break-before: always;
   }

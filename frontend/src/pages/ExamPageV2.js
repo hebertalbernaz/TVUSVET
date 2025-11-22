@@ -396,27 +396,31 @@ export default function ExamPageV2() {
          </ResizablePanelGroup>
       </div>
       
-      {/* ÁREA DE IMPRESSÃO (Tabela HTML) */}
+{/* ÁREA DE IMPRESSÃO (Tabela HTML) */}
       <div id="printable-report">
          <table className="report-table">
+            {/* CABEÇALHO (Repete em todas as páginas) */}
             <thead>
                <tr>
-                  <td>
-                     <div style={{marginBottom: '10px'}}>
+                  <td className="report-header-cell">
+                     <div style={{width: '100%', display: 'flex', justifyContent: 'center', marginBottom: '10px'}}>
                         {settings?.letterhead_path?.startsWith('data:image') ? (
-                            <img src={settings.letterhead_path} style={{width: '100%', maxHeight: '4cm', objectFit: 'contain'}} alt="Cabeçalho" />
+                            /* Altura fixa ajuda o navegador a calcular a quebra de página */
+                            <img src={settings.letterhead_path} style={{maxWidth: '90%', maxHeight: '3.5cm', objectFit: 'contain'}} alt="Cabeçalho" />
                         ) : (
-                            <h1 className="text-2xl font-bold uppercase text-center border-b pb-2">{settings?.clinic_name || 'LAUDO VETERINÁRIO'}</h1>
+                            <h1 className="text-2xl font-bold uppercase text-center border-b pb-2 w-full">{settings?.clinic_name || 'LAUDO VETERINÁRIO'}</h1>
                         )}
                      </div>
                   </td>
                </tr>
             </thead>
+
+            {/* CONTEÚDO */}
             <tbody>
                <tr>
                   <td className="report-content-cell">
                      {/* Dados do Paciente */}
-                     <div className="border-b pb-4 mb-6 text-sm space-y-1">
+                     <div className="border-b pb-4 mb-6 text-sm space-y-1 avoid-break">
                         <div className="grid grid-cols-2 gap-4">
                             <p><strong>Paciente:</strong> {patient.name}</p>
                             <p><strong>Espécie:</strong> {patient.species}</p>
@@ -431,7 +435,7 @@ export default function ExamPageV2() {
                         </div>
                      </div>
 
-                     <h2 className="text-xl font-bold text-center mb-6 uppercase">Laudo Ultrassonográfico</h2>
+                     <h2 className="text-xl font-bold text-center mb-6 uppercase avoid-break">Laudo Ultrassonográfico</h2>
 
                      {organsData.map((o, i) => o.report_text && (
                         <div key={i} className="mb-6 avoid-break">
@@ -444,8 +448,8 @@ export default function ExamPageV2() {
                      ))}
 
                      {examImages.length > 0 && (
-                        <div className="mt-8 avoid-break">
-                           <h3 className="font-bold text-center mb-4">IMAGENS</h3>
+                        <div className="mt-8">
+                           <h3 className="font-bold text-center mb-4 avoid-break">IMAGENS</h3>
                            <div className="print-image-grid">
                               {examImages.map(img => (
                                  <div key={img.id} className="print-image-item">
