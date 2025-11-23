@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -127,6 +127,7 @@ export default function ExamPage() {
     setOrgansData(newOrgans);
   };
 
+  // Helpers
   const calculateAge = (patient) => {
     if (patient.birth_year) {
         const currentYear = new Date().getFullYear();
@@ -159,28 +160,34 @@ export default function ExamPage() {
     return null;
   };
 
-  // 🔴 CORREÇÃO: PROCESSADOR DE TEXTO (Substitui medidas e formata Markdown)
-  const processReportText = (text, measurements) => {
+  // Processador de Texto para PDF/HTML
+  const processTextPlaceholders = (text, measurementsObj) => {
     if (!text) return '';
-    
     let processed = text;
     
-    // 1. Substituir Medidas (Igual ao DOCX)
-    if (measurements) {
-        const sortedMeasurements = Object.keys(measurements)
-            .sort()
-            .map(key => measurements[key]);
-        
-        sortedMeasurements.forEach(m => {
-             processed = processed.replace(/\{(MEDIDA|medida|MEDIDAS|medidas)\}|<(MEDIDA|medida|MEDIDAS|medidas)>/, `${m.value} ${m.unit}`);
-        });
-    }
+    // Garante a ordem m1, m2, m3
+    const m1 = measurementsObj?.m1;
+    const m2 = measurementsObj?.m2;
+    const m3 = measurementsObj?.m3;
 
-    // 2. Renderizar Markdown (**negrito**, *italico*) para HTML
-    // Usamos split para preservar a segurança do React (não usar dangerouslySetInnerHTML se possível)
-    // Mas para mistura complexa, dangerously é mais fácil, vamos usar uma abordagem segura de componentes
-    
-    // Truque simples: retornar array de componentes React
+    // Substituições Específicas (M1, M2, M3)
+    processed = processed.replace(/\{(MEDIDA1|medida1|M1)\}/g, m1 ? `${m1.value} ${m1.unit}` : '___');
+    processed = processed.replace(/\{(MEDIDA2|medida2|M2)\}/g, m2 ? `${m2.value} ${m2.unit}` : '___');
+    processed = processed.replace(/\{(MEDIDA3|medida3|M3)\}/g, m3 ? `${m3.value} ${m3.unit}` : '___');
+
+    // Substituição Genérica (Sequencial - Fallback)
+    const sortedM = [m1, m2, m3].filter(Boolean);
+    let genericIndex = 0;
+    processed = processed.replace(/\{(MEDIDA|medida)\}/g, () => {
+        const m = sortedM[genericIndex++];
+        return m ? `${m.value} ${m.unit}` : '{MEDIDA}';
+    });
+
+    return processed;
+  };
+
+  const renderProcessedTextHTML = (text, measurementsObj) => {
+    const processed = processTextPlaceholders(text, measurementsObj);
     const parts = processed.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
     return parts.map((part, index) => {
       if (part.startsWith('**')) return <strong key={index}>{part.slice(2, -2)}</strong>;
@@ -259,14 +266,13 @@ export default function ExamPage() {
         if (data.report_text || Object.keys(data.measurements).length) {
             docChildren.push(new Paragraph({ text: t(data.organ_name), heading: HeadingLevel.HEADING_3 }));
             if (data.report_text) {
-                let txt = data.report_text;
-                const sortedMeasurements = Object.keys(data.measurements).sort().map(key => data.measurements[key]);
-                sortedMeasurements.forEach(m => {
-                    txt = txt.replace(/\{(MEDIDA|medida|MEDIDAS|medidas)\}|<(MEDIDA|medida|MEDIDAS|medidas)>/, `${m.value} ${m.unit}`);
-                });
-                txt.split('\n').forEach(line => {
+                // 🔴 USANDO O PROCESSADOR COM SUPORTE A M1, M2, M3
+                const processedText = processTextPlaceholders(data.report_text, data.measurements);
+                
+                processedText.split('\n').forEach(line => {
                     docChildren.push(new Paragraph({ children: parseTextDocx(line) }));
                 });
+                
                 const refText = getReferenceValueText(data.organ_name);
                 if (refText) {
                     docChildren.push(new Paragraph({ 
@@ -322,10 +328,9 @@ export default function ExamPage() {
     } catch (e) { console.error(e); toast.error('Erro ao gerar.'); }
   };
 
-  // CORREÇÃO: Forçar foco antes de imprimir
   const handlePrintPdf = () => { 
-      window.focus(); // Garante foco para o Electron
-      setTimeout(() => window.print(), 100); // Pequeno delay para garantir renderização
+      window.focus();
+      setTimeout(() => window.print(), 100);
   };
 
   if (!exam || !patient) return <div className="flex h-screen items-center justify-center">Carregando...</div>;
@@ -417,7 +422,7 @@ export default function ExamPage() {
          </ResizablePanelGroup>
       </div>
       
-      {/* ======= ÁREA DE IMPRESSÃO (PDF) ======= */}
+      {/* PDF COM TABELA */}
       <div id="printable-report">
          <table className="report-table">
             <thead>
@@ -457,9 +462,8 @@ export default function ExamPage() {
                         <div key={i} className="mb-6 avoid-break">
                            <h3 className="font-bold text-lg mb-1">{translate(o.organ_name, reportLanguage)}</h3>
                            
-                           {/* USANDO O FORMATADOR COM SUBSTITUIÇÃO DE MEDIDAS */}
                            <div className="whitespace-pre-wrap text-justify text-sm leading-relaxed">
-                               {processReportText(o.report_text, o.measurements)}
+                               {renderProcessedTextHTML(o.report_text, o.measurements)}
                            </div>
 
                            {getReferenceValueText(o.organ_name) && (
@@ -501,8 +505,21 @@ function OrganEditor({ organ, templates, onChange }) {
 
   const updateText = (val) => { setText(val); onChange('report_text', val); };
   const addTemplate = (txt) => { const newText = text ? text + '\n' + txt : txt; updateText(newText); };
-  const addMeasurement = (val, unit) => { const id = `m_${Date.now()}`; const newM = { ...measurements, [id]: { value: val, unit } }; setMeasurements(newM); onChange('measurements', newM); };
-  const deleteMeasurement = (key) => { const newM = { ...measurements }; delete newM[key]; setMeasurements(newM); onChange('measurements', newM); };
+  
+  // NOVA FUNÇÃO: Adiciona medida específica (1, 2, 3)
+  const setMeasurement = (index, val, unit) => {
+      const key = `m${index}`;
+      const newM = { ...measurements };
+      
+      if (val) {
+        newM[key] = { value: val, unit };
+      } else {
+        delete newM[key]; // Remove se vazio
+      }
+      
+      setMeasurements(newM);
+      onChange('measurements', newM);
+  };
 
   const insertFormatting = (type) => {
     if (!textAreaRef.current) return;
@@ -512,6 +529,13 @@ function OrganEditor({ organ, templates, onChange }) {
     const marker = type === 'bold' ? '**' : '*';
     const newText = text.substring(0, start) + `${marker}${selected}${marker}` + text.substring(end);
     updateText(newText);
+    
+    // Devolve o foco
+    setTimeout(() => {
+        textAreaRef.current.focus();
+        textAreaRef.current.selectionStart = start + marker.length;
+        textAreaRef.current.selectionEnd = end + marker.length;
+    }, 10);
   };
 
   return (
@@ -523,17 +547,20 @@ function OrganEditor({ organ, templates, onChange }) {
         <div className="grid grid-cols-2 gap-4 h-[calc(100%-4rem)]">
             <div className="flex flex-col gap-3 h-full">
                 <div className="bg-muted/20 p-3 rounded border">
-                    <div className="flex gap-2 mb-2">
-                        <Input id="med-val" placeholder="0.0" className="h-8 bg-white" type="number" onKeyDown={e => { if(e.key==='Enter'){ const val = e.currentTarget.value; if(val) { addMeasurement(val, 'cm'); e.currentTarget.value=''; }}}} />
-                        <span className="text-sm self-center">cm</span>
-                        <Button size="sm" variant="secondary" onClick={() => { const el = document.getElementById('med-val'); if(el.value) { addMeasurement(el.value, 'cm'); el.value = ''; }}}>Add</Button>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                        {Object.entries(measurements).map(([key, m]) => (
-                            <Badge key={key} variant="outline" className="bg-white gap-1 pr-1 items-center">
-                                {m.value} {m.unit}
-                                <span onClick={() => deleteMeasurement(key)} className="cursor-pointer hover:text-red-500 hover:bg-red-50 rounded-full p-0.5 flex items-center justify-center transition-colors"><X className="h-3 w-3" /></span>
-                            </Badge>
+                    <div className="space-y-2">
+                        {/* 3 CAMPOS FIXOS DE MEDIDA */}
+                        {[1, 2, 3].map(num => (
+                            <div key={num} className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-muted-foreground w-6">M{num}</span>
+                                <Input 
+                                    className="h-7 bg-white text-sm" 
+                                    placeholder="0.0"
+                                    type="number"
+                                    value={measurements[`m${num}`]?.value || ''}
+                                    onChange={(e) => setMeasurement(num, e.target.value, 'cm')}
+                                />
+                                <span className="text-xs text-muted-foreground">cm</span>
+                            </div>
                         ))}
                     </div>
                 </div>

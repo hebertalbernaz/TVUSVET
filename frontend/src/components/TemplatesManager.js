@@ -6,13 +6,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, Trash2, Edit, Bold, Italic } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { Plus, Trash2, Edit, Save, X, Bold, Italic } from 'lucide-react';
 import { toast } from 'sonner';
 import { db } from '@/services/database';
-import { ABDOMINAL_ORGANS, REPRODUCTIVE_ORGANS_MALE, REPRODUCTIVE_ORGANS_FEMALE } from '@/lib/exam_types';
+import { ABDOMINAL_ORGANS, REPRODUCTIVE_ORGANS_MALE, REPRODUCTIVE_ORGANS_FEMALE, ULTRASOUND_CONCLUSION } from '@/lib/exam_types';
 
 const ALL_STRUCTURES = [
-  { category: 'Ultrassom', structures: [...ABDOMINAL_ORGANS, ...REPRODUCTIVE_ORGANS_MALE, ...REPRODUCTIVE_ORGANS_FEMALE, 'Conclusão'] }
+  { category: 'Ultrassom', structures: [...ABDOMINAL_ORGANS, ...REPRODUCTIVE_ORGANS_MALE, ...REPRODUCTIVE_ORGANS_FEMALE, ...ULTRASOUND_CONCLUSION] }
 ];
 
 export function TemplatesManager({ templates, onUpdate }) {
@@ -26,28 +27,66 @@ export function TemplatesManager({ templates, onUpdate }) {
   const newTextRef = useRef(null);
   const editTextRef = useRef(null);
 
-  // Função para inserir formatação (Negrito/Itálico) na posição do cursor
+  // Função para inserir texto na posição do cursor
+  const insertAtCursor = (ref, stateSetter, currentState, textToInsert) => {
+    if (!ref.current) return;
+    const start = ref.current.selectionStart;
+    const end = ref.current.selectionEnd;
+    const newText = currentState.substring(0, start) + textToInsert + currentState.substring(end);
+    
+    if (typeof stateSetter === 'function') {
+        // Se for o setEditText (edição)
+        stateSetter(newText);
+    } else {
+        // Se for o setNewTemplate (novo)
+        stateSetter({ ...currentState, text: newText });
+    }
+
+    setTimeout(() => {
+        ref.current.focus();
+        ref.current.selectionStart = ref.current.selectionEnd = start + textToInsert.length;
+    }, 10);
+  };
+
   const insertFormatting = (type, isEditing = false) => {
     const ref = isEditing ? editTextRef : newTextRef;
     const currentText = isEditing ? editText : newTemplate.text;
-    const setText = isEditing ? setEditText : (val) => setNewTemplate({ ...newTemplate, text: val });
-
+    const setter = isEditing ? setEditText : null; // Para novo template usamos lógica direta abaixo
+    
     if (!ref.current) return;
-
     const start = ref.current.selectionStart;
     const end = ref.current.selectionEnd;
     const selected = currentText.substring(start, end);
-    const marker = type === 'bold' ? '**' : '*';
-    const newText = currentText.substring(0, start) + `${marker}${selected}${marker}` + currentText.substring(end);
-
-    setText(newText);
     
-    // Recupera o foco após inserir
-    setTimeout(() => {
-        ref.current.focus();
-        ref.current.selectionStart = start + marker.length;
-        ref.current.selectionEnd = end + marker.length;
-    }, 10);
+    let newText = '';
+    
+    if (type === 'bold') newText = currentText.substring(0, start) + `**${selected}**` + currentText.substring(end);
+    else if (type === 'italic') newText = currentText.substring(0, start) + `*${selected}*` + currentText.substring(end);
+    
+    if (isEditing) {
+        setEditText(newText);
+    } else {
+        setNewTemplate({ ...newTemplate, text: newText });
+    }
+  };
+
+  // Inserir Medidas Específicas
+  const insertMeasure = (num, isEditing = false) => {
+    const tag = `{MEDIDA${num}}`;
+    if (isEditing) {
+        insertAtCursor(editTextRef, setEditText, editText, tag);
+    } else {
+        insertAtCursor(newTextRef, (val) => setNewTemplate(val), newTemplate.text, tag); // Adapter para o state complexo
+        // Correção para o adapter acima: o insertAtCursor espera (..., stateObject, ...)
+        // Vamos simplificar a chamada direta:
+        const ref = newTextRef;
+        const currentText = newTemplate.text;
+        if (!ref.current) return;
+        const start = ref.current.selectionStart;
+        const newText = currentText.substring(0, start) + tag + currentText.substring(ref.current.selectionEnd);
+        setNewTemplate({ ...newTemplate, text: newText });
+        setTimeout(() => { ref.current.focus(); ref.current.selectionStart = ref.current.selectionEnd = start + tag.length; }, 10);
+    }
   };
 
   const createTemplate = async () => {
@@ -106,13 +145,17 @@ export function TemplatesManager({ templates, onUpdate }) {
                     </div>
                     <div><Label>Título</Label><Input value={newTemplate.title} onChange={e => setNewTemplate({...newTemplate, title: e.target.value})} placeholder="Ex: Normal"/></div>
                     
-                    {/* Área de Texto com Botões */}
+                    {/* Editor com Botões */}
                     <div>
                         <div className="flex justify-between items-end mb-1">
                             <Label>Texto</Label>
                             <div className="flex gap-1">
-                                <Button type="button" variant="outline" size="icon" className="h-6 w-6" onClick={() => insertFormatting('bold')} title="Negrito"><Bold className="h-3 w-3"/></Button>
-                                <Button type="button" variant="outline" size="icon" className="h-6 w-6" onClick={() => insertFormatting('italic')} title="Itálico"><Italic className="h-3 w-3"/></Button>
+                                <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => insertMeasure(1)} title="Medida 1">M1</Button>
+                                <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => insertMeasure(2)} title="Medida 2">M2</Button>
+                                <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => insertMeasure(3)} title="Medida 3">M3</Button>
+                                <Separator orientation="vertical" className="h-6 mx-1" />
+                                <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => insertFormatting('bold')} title="Negrito"><Bold className="h-3 w-3"/></Button>
+                                <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => insertFormatting('italic')} title="Itálico"><Italic className="h-3 w-3"/></Button>
                             </div>
                         </div>
                         <Textarea 
@@ -137,9 +180,13 @@ export function TemplatesManager({ templates, onUpdate }) {
                                 {editingId === t.id ? (
                                     <div className="w-full space-y-2">
                                         <Input value={editTitle} onChange={e=>setEditTitle(e.target.value)}/>
-                                        <div className="flex gap-1 mb-1">
-                                            <Button type="button" variant="outline" size="icon" className="h-6 w-6" onClick={() => insertFormatting('bold', true)}><Bold className="h-3 w-3"/></Button>
-                                            <Button type="button" variant="outline" size="icon" className="h-6 w-6" onClick={() => insertFormatting('italic', true)}><Italic className="h-3 w-3"/></Button>
+                                        <div className="flex gap-1 mb-1 justify-end">
+                                            <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => insertMeasure(1, true)}>M1</Button>
+                                            <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => insertMeasure(2, true)}>M2</Button>
+                                            <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => insertMeasure(3, true)}>M3</Button>
+                                            <Separator orientation="vertical" className="h-6 mx-1" />
+                                            <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => insertFormatting('bold', true)}><Bold className="h-3 w-3"/></Button>
+                                            <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => insertFormatting('italic', true)}><Italic className="h-3 w-3"/></Button>
                                         </div>
                                         <Textarea ref={editTextRef} value={editText} onChange={e=>setEditText(e.target.value)}/>
                                         <div className="flex gap-2"><Button size="sm" onClick={()=>saveEdit(t.id)}>Salvar</Button><Button variant="outline" size="sm" onClick={()=>setEditingId(null)}>Cancelar</Button></div>
