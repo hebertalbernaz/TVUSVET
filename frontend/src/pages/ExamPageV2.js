@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Upload, Save, Download, X, Check, ArrowLeft, Trash2, Plus, Printer, Bold, Italic } from 'lucide-react';
+import { Upload, Save, Download, X, Check, ArrowLeft, Trash2, Plus, Printer, Bold, Italic, Edit } from 'lucide-react';
 import { toast } from 'sonner';
 import { db } from '@/services/database';
 import { 
@@ -19,6 +19,9 @@ import { getStructuresForExam, getExamTypeName } from '@/lib/exam_types';
 import { translate, getAvailableLanguages } from '@/services/translation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+
+// Importa o novo componente
+import { ImageEditor } from '@/components/ImageEditor';
 
 export default function ExamPage() {
   const { examId } = useParams();
@@ -37,9 +40,11 @@ export default function ExamPage() {
   const [reportLanguage, setReportLanguage] = useState('pt');
   const navigate = useNavigate();
 
+  // Estado para o Editor de Imagem
+  const [editingImage, setEditingImage] = useState(null); // Imagem sendo editada
+
   useEffect(() => { loadExamData(); }, [examId]);
 
-  // --- DATA HELPERS ---
   const toLocalISO = (dateObj) => {
     const tzOffset = dateObj.getTimezoneOffset() * 60000;
     const localISOTime = (new Date(dateObj - tzOffset)).toISOString().slice(0, 16);
@@ -121,13 +126,39 @@ export default function ExamPage() {
     setExamImages(prev => prev.filter(img => img.id !== imageId));
   };
 
+  // --- FUNÇÃO DE SALVAR EDIÇÃO ---
+  const handleSaveEditedImage = async (newDataBase64) => {
+    if (!editingImage) return;
+
+    try {
+        // Atualiza a imagem no banco de dados (deleta a velha e cria uma nova ou atualiza)
+        // Por simplicidade e segurança, vamos atualizar o campo 'data' da imagem existente
+        const updatedImage = { ...editingImage, data: newDataBase64 };
+        
+        // Atualiza no banco
+        const examData = await db.getExam(examId);
+        const imageIndex = examData.images.findIndex(img => img.id === editingImage.id);
+        if (imageIndex !== -1) {
+            examData.images[imageIndex] = updatedImage;
+            await db.updateExam(examId, examData);
+            
+            // Atualiza estado local
+            setExamImages(prev => prev.map(img => img.id === editingImage.id ? updatedImage : img));
+            toast.success('Imagem editada salva!');
+        }
+        setEditingImage(null); // Fecha editor
+    } catch (e) {
+        console.error(e);
+        toast.error('Erro ao salvar edição');
+    }
+  };
+
   const updateOrganData = (index, field, value) => {
     const newOrgans = [...organsData];
     newOrgans[index] = { ...newOrgans[index], [field]: value };
     setOrgansData(newOrgans);
   };
 
-  // Helpers
   const calculateAge = (patient) => {
     if (patient.birth_year) {
         const currentYear = new Date().getFullYear();
@@ -160,29 +191,21 @@ export default function ExamPage() {
     return null;
   };
 
-  // Processador de Texto para PDF/HTML
   const processTextPlaceholders = (text, measurementsObj) => {
     if (!text) return '';
     let processed = text;
-    
-    // Garante a ordem m1, m2, m3
-    const m1 = measurementsObj?.m1;
-    const m2 = measurementsObj?.m2;
-    const m3 = measurementsObj?.m3;
-
-    // Substituições Específicas (M1, M2, M3)
-    processed = processed.replace(/\{(MEDIDA1|medida1|M1)\}/g, m1 ? `${m1.value} ${m1.unit}` : '___');
-    processed = processed.replace(/\{(MEDIDA2|medida2|M2)\}/g, m2 ? `${m2.value} ${m2.unit}` : '___');
-    processed = processed.replace(/\{(MEDIDA3|medida3|M3)\}/g, m3 ? `${m3.value} ${m3.unit}` : '___');
-
-    // Substituição Genérica (Sequencial - Fallback)
-    const sortedM = [m1, m2, m3].filter(Boolean);
+    const sortedM = measurementsObj ? Object.keys(measurementsObj).sort().map(k => measurementsObj[k]) : [];
     let genericIndex = 0;
     processed = processed.replace(/\{(MEDIDA|medida)\}/g, () => {
         const m = sortedM[genericIndex++];
         return m ? `${m.value} ${m.unit}` : '{MEDIDA}';
     });
-
+    const m1 = measurementsObj?.m1;
+    const m2 = measurementsObj?.m2;
+    const m3 = measurementsObj?.m3;
+    processed = processed.replace(/\{(MEDIDA1|medida1|M1)\}/g, m1 ? `${m1.value} ${m1.unit}` : '___');
+    processed = processed.replace(/\{(MEDIDA2|medida2|M2)\}/g, m2 ? `${m2.value} ${m2.unit}` : '___');
+    processed = processed.replace(/\{(MEDIDA3|medida3|M3)\}/g, m3 ? `${m3.value} ${m3.unit}` : '___');
     return processed;
   };
 
@@ -196,7 +219,6 @@ export default function ExamPage() {
     });
   };
 
-  // DOCX Helpers
   const dataURLToUint8Array = (dataURL) => {
     const base64 = dataURL.split(',')[1];
     const binary = atob(base64);
@@ -266,13 +288,10 @@ export default function ExamPage() {
         if (data.report_text || Object.keys(data.measurements).length) {
             docChildren.push(new Paragraph({ text: t(data.organ_name), heading: HeadingLevel.HEADING_3 }));
             if (data.report_text) {
-                // 🔴 USANDO O PROCESSADOR COM SUPORTE A M1, M2, M3
                 const processedText = processTextPlaceholders(data.report_text, data.measurements);
-                
                 processedText.split('\n').forEach(line => {
                     docChildren.push(new Paragraph({ children: parseTextDocx(line) }));
                 });
-                
                 const refText = getReferenceValueText(data.organ_name);
                 if (refText) {
                     docChildren.push(new Paragraph({ 
@@ -344,7 +363,16 @@ export default function ExamPage() {
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       
-      {/* Header UI */}
+      {/* Modal do Editor de Imagem */}
+      {editingImage && (
+          <ImageEditor 
+            isOpen={!!editingImage}
+            imageUrl={editingImage.data}
+            onClose={() => setEditingImage(null)}
+            onSave={handleSaveEditedImage}
+          />
+      )}
+
       <div className="h-14 border-b flex items-center justify-between px-4 bg-card shrink-0 no-print">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')}><ArrowLeft className="h-5 w-5"/></Button>
@@ -371,7 +399,6 @@ export default function ExamPage() {
         </div>
       </div>
 
-      {/* Grid UI */}
       <div className="flex-1 overflow-hidden no-print">
          <ResizablePanelGroup direction="horizontal">
             <ResizablePanel defaultSize={20} minSize={15} maxSize={50} className="border-r bg-muted/10">
@@ -386,9 +413,12 @@ export default function ExamPage() {
                   <ScrollArea className="flex-1 p-2">
                      <div className="space-y-2">
                        {examImages.map(img => (
-                         <div key={img.id} className="relative group aspect-video bg-black/5 rounded overflow-hidden border">
+                         <div key={img.id} className="relative group aspect-video bg-black/5 rounded overflow-hidden border cursor-pointer" onClick={() => setEditingImage(img)}>
                            <img src={img.data} className="w-full h-full object-cover" alt="" />
-                           <button onClick={() => handleDeleteImage(img.id)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded opacity-0 group-hover:opacity-100"><Trash2 className="h-3 w-3" /></button>
+                           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
+                                <Edit className="h-6 w-6" />
+                           </div>
+                           <button onClick={(e) => { e.stopPropagation(); handleDeleteImage(img.id); }} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded z-10 hover:bg-red-600"><Trash2 className="h-3 w-3" /></button>
                          </div>
                        ))}
                      </div>
@@ -422,7 +452,6 @@ export default function ExamPage() {
          </ResizablePanelGroup>
       </div>
       
-      {/* PDF COM TABELA */}
       <div id="printable-report">
          <table className="report-table">
             <thead>
@@ -461,11 +490,9 @@ export default function ExamPage() {
                      {organsData.map((o, i) => o.report_text && (
                         <div key={i} className="mb-6 avoid-break">
                            <h3 className="font-bold text-lg mb-1">{translate(o.organ_name, reportLanguage)}</h3>
-                           
                            <div className="whitespace-pre-wrap text-justify text-sm leading-relaxed">
                                {renderProcessedTextHTML(o.report_text, o.measurements)}
                            </div>
-
                            {getReferenceValueText(o.organ_name) && (
                                <p className="text-xs text-gray-500 mt-1 italic">{getReferenceValueText(o.organ_name)}</p>
                            )}
@@ -506,17 +533,11 @@ function OrganEditor({ organ, templates, onChange }) {
   const updateText = (val) => { setText(val); onChange('report_text', val); };
   const addTemplate = (txt) => { const newText = text ? text + '\n' + txt : txt; updateText(newText); };
   
-  // NOVA FUNÇÃO: Adiciona medida específica (1, 2, 3)
   const setMeasurement = (index, val, unit) => {
       const key = `m${index}`;
       const newM = { ...measurements };
-      
-      if (val) {
-        newM[key] = { value: val, unit };
-      } else {
-        delete newM[key]; // Remove se vazio
-      }
-      
+      if (val) newM[key] = { value: val, unit };
+      else delete newM[key];
       setMeasurements(newM);
       onChange('measurements', newM);
   };
@@ -529,13 +550,6 @@ function OrganEditor({ organ, templates, onChange }) {
     const marker = type === 'bold' ? '**' : '*';
     const newText = text.substring(0, start) + `${marker}${selected}${marker}` + text.substring(end);
     updateText(newText);
-    
-    // Devolve o foco
-    setTimeout(() => {
-        textAreaRef.current.focus();
-        textAreaRef.current.selectionStart = start + marker.length;
-        textAreaRef.current.selectionEnd = end + marker.length;
-    }, 10);
   };
 
   return (
@@ -548,7 +562,6 @@ function OrganEditor({ organ, templates, onChange }) {
             <div className="flex flex-col gap-3 h-full">
                 <div className="bg-muted/20 p-3 rounded border">
                     <div className="space-y-2">
-                        {/* 3 CAMPOS FIXOS DE MEDIDA */}
                         {[1, 2, 3].map(num => (
                             <div key={num} className="flex items-center gap-2">
                                 <span className="text-xs font-bold text-muted-foreground w-6">M{num}</span>
