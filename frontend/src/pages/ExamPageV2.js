@@ -1,13 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Upload, Save, Download, X, Check, ArrowLeft, Trash2, Plus, Printer, Bold, Italic, Edit } from 'lucide-react';
+import { Upload, Save, Download, X, Check, ArrowLeft, Trash2, Plus, Printer, Bold, Italic, Edit, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { db } from '@/services/database';
 import { 
@@ -37,9 +37,7 @@ export default function ExamPage() {
   const [uploading, setUploading] = useState(false);
   const [reportLanguage, setReportLanguage] = useState('pt');
   const navigate = useNavigate();
-
-  // Estado para o Editor de Imagem
-  const [editingImage, setEditingImage] = useState(null); // Imagem sendo editada
+  const [editingImage, setEditingImage] = useState(null);
 
   useEffect(() => { loadExamData(); }, [examId]);
 
@@ -108,8 +106,14 @@ export default function ExamPage() {
         await new Promise((resolve) => {
           const reader = new FileReader();
           reader.onload = async (e) => {
-             await db.saveImage(examId, { filename: file.name, data: e.target.result });
-             resolve();
+            // Salva já com o campo originalData
+            const imgData = { 
+                filename: file.name, 
+                data: e.target.result,
+                originalData: e.target.result 
+            };
+            await db.saveImage(examId, imgData);
+            resolve();
           };
           reader.readAsDataURL(file);
         });
@@ -120,35 +124,55 @@ export default function ExamPage() {
   };
 
   const handleDeleteImage = async (imageId) => {
+    if (!window.confirm('Apagar imagem?')) return;
     await db.deleteImage(examId, imageId);
     setExamImages(prev => prev.filter(img => img.id !== imageId));
   };
 
-  // --- FUNÇÃO DE SALVAR EDIÇÃO ---
+  // 🔴 NOVO: RESETAR IMAGEM
+  const handleResetImage = async (imgId) => {
+      if (!window.confirm('Restaurar imagem original? Todas as edições serão perdidas.')) return;
+      
+      try {
+          const examData = await db.getExam(examId);
+          const imageIndex = examData.images.findIndex(i => i.id === imgId);
+          
+          if (imageIndex !== -1 && examData.images[imageIndex].originalData) {
+              // Restaura dados originais
+              examData.images[imageIndex].data = examData.images[imageIndex].originalData;
+              await db.updateExam(examId, examData);
+              
+              // Atualiza tela
+              setExamImages(prev => prev.map(img => img.id === imgId ? examData.images[imageIndex] : img));
+              toast.success('Imagem restaurada!');
+          } else {
+              toast.error('Não há versão original salva para esta imagem.');
+          }
+      } catch (e) { toast.error('Erro ao restaurar'); }
+  };
+
   const handleSaveEditedImage = async (newDataBase64) => {
     if (!editingImage) return;
-
     try {
-        // Atualiza a imagem no banco de dados (deleta a velha e cria uma nova ou atualiza)
-        // Por simplicidade e segurança, vamos atualizar o campo 'data' da imagem existente
-        const updatedImage = { ...editingImage, data: newDataBase64 };
+        // Mantém o originalData ao salvar a edição
+        const updatedImage = { 
+            ...editingImage, 
+            data: newDataBase64,
+            // Se não tinha originalData (imagem antiga), o estado atual vira o original antes de salvar
+            originalData: editingImage.originalData || editingImage.data 
+        };
         
-        // Atualiza no banco
         const examData = await db.getExam(examId);
         const imageIndex = examData.images.findIndex(img => img.id === editingImage.id);
+        
         if (imageIndex !== -1) {
             examData.images[imageIndex] = updatedImage;
             await db.updateExam(examId, examData);
-            
-            // Atualiza estado local
             setExamImages(prev => prev.map(img => img.id === editingImage.id ? updatedImage : img));
-            toast.success('Imagem editada salva!');
+            toast.success('Imagem salva!');
         }
-        setEditingImage(null); // Fecha editor
-    } catch (e) {
-        console.error(e);
-        toast.error('Erro ao salvar edição');
-    }
+        setEditingImage(null);
+    } catch (e) { toast.error('Erro ao salvar edição'); }
   };
 
   const updateOrganData = (index, field, value) => {
@@ -157,6 +181,7 @@ export default function ExamPage() {
     setOrgansData(newOrgans);
   };
 
+  // Helpers
   const calculateAge = (patient) => {
     if (patient.birth_year) {
         const currentYear = new Date().getFullYear();
@@ -192,18 +217,18 @@ export default function ExamPage() {
   const processTextPlaceholders = (text, measurementsObj) => {
     if (!text) return '';
     let processed = text;
-    const sortedM = measurementsObj ? Object.keys(measurementsObj).sort().map(k => measurementsObj[k]) : [];
-    let genericIndex = 0;
-    processed = processed.replace(/\{(MEDIDA|medida)\}/g, () => {
-        const m = sortedM[genericIndex++];
-        return m ? `${m.value} ${m.unit}` : '{MEDIDA}';
-    });
     const m1 = measurementsObj?.m1;
     const m2 = measurementsObj?.m2;
     const m3 = measurementsObj?.m3;
     processed = processed.replace(/\{(MEDIDA1|medida1|M1)\}/g, m1 ? `${m1.value} ${m1.unit}` : '___');
     processed = processed.replace(/\{(MEDIDA2|medida2|M2)\}/g, m2 ? `${m2.value} ${m2.unit}` : '___');
     processed = processed.replace(/\{(MEDIDA3|medida3|M3)\}/g, m3 ? `${m3.value} ${m3.unit}` : '___');
+    const sortedM = [m1, m2, m3].filter(Boolean);
+    let genericIndex = 0;
+    processed = processed.replace(/\{(MEDIDA|medida)\}/g, () => {
+        const m = sortedM[genericIndex++];
+        return m ? `${m.value} ${m.unit}` : '{MEDIDA}';
+    });
     return processed;
   };
 
@@ -361,7 +386,7 @@ export default function ExamPage() {
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       
-      {/* Modal do Editor de Imagem */}
+      {/* Modal do Editor */}
       {editingImage && (
           <ImageEditor 
             isOpen={!!editingImage}
@@ -371,6 +396,7 @@ export default function ExamPage() {
           />
       )}
 
+      {/* Header UI */}
       <div className="h-14 border-b flex items-center justify-between px-4 bg-card shrink-0 no-print">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')}><ArrowLeft className="h-5 w-5"/></Button>
@@ -416,7 +442,26 @@ export default function ExamPage() {
                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
                                 <Edit className="h-6 w-6" />
                            </div>
-                           <button onClick={(e) => { e.stopPropagation(); handleDeleteImage(img.id); }} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded z-10 hover:bg-red-600"><Trash2 className="h-3 w-3" /></button>
+                           
+                           {/* Botões: Lixo e Reset */}
+                           <div className="absolute top-1 right-1 flex gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                               {img.originalData && (
+                                   <button 
+                                     onClick={(e) => { e.stopPropagation(); handleResetImage(img.id); }} 
+                                     className="bg-yellow-500 text-white p-1 rounded hover:bg-yellow-600"
+                                     title="Restaurar Original"
+                                   >
+                                     <RotateCcw className="h-3 w-3" />
+                                   </button>
+                               )}
+                               <button 
+                                 onClick={(e) => { e.stopPropagation(); handleDeleteImage(img.id); }} 
+                                 className="bg-red-500 text-white p-1 rounded hover:bg-red-600"
+                                 title="Apagar"
+                               >
+                                 <Trash2 className="h-3 w-3" />
+                               </button>
+                           </div>
                          </div>
                        ))}
                      </div>
@@ -450,6 +495,7 @@ export default function ExamPage() {
          </ResizablePanelGroup>
       </div>
       
+      {/* PDF */}
       <div id="printable-report">
          <table className="report-table">
             <thead>
@@ -548,6 +594,12 @@ function OrganEditor({ organ, templates, onChange }) {
     const marker = type === 'bold' ? '**' : '*';
     const newText = text.substring(0, start) + `${marker}${selected}${marker}` + text.substring(end);
     updateText(newText);
+    
+    setTimeout(() => {
+        textAreaRef.current.focus();
+        textAreaRef.current.selectionStart = start + marker.length;
+        textAreaRef.current.selectionEnd = end + marker.length;
+    }, 10);
   };
 
   return (
