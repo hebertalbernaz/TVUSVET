@@ -19,8 +19,6 @@ import { getStructuresForExam, getExamTypeName } from '@/lib/exam_types';
 import { translate, getAvailableLanguages } from '@/services/translation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
-
-// Importa o novo componente
 import { ImageEditor } from '@/components/ImageEditor';
 
 export default function ExamPage() {
