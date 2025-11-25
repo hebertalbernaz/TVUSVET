@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Upload, Save, Download, X, Check, ArrowLeft, Trash2, Plus, Printer, Bold, Italic, Edit, RotateCcw, History, Images } from 'lucide-react'; // Adicionado 'Images'
+import { Upload, Save, Download, X, Check, ArrowLeft, Trash2, Plus, Printer, Bold, Italic, Edit, RotateCcw, History, Images } from 'lucide-react';
 import { toast } from 'sonner';
 import { db } from '@/services/database';
 import { 
@@ -15,7 +15,7 @@ import {
   ImageRun, Header, SectionType, PageBreak, Table, TableRow, TableCell, 
   WidthType, BorderStyle 
 } from 'docx';
-import { getStructuresForExam } from '@/lib/exam_types';
+import { getStructuresForExam, getExamTypeName } from '@/lib/exam_types';
 import { translate, getAvailableLanguages } from '@/services/translation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
@@ -90,15 +90,14 @@ export default function ExamPage() {
       if (!patient) return;
       const baseUrl = window.location.href.split('#')[0];
       const historyUrl = `${baseUrl}#/history/${patient.id}`;
-      window.open(historyUrl, 'Histórico do Paciente', 'width=600,height=800,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes');
+      window.open(historyUrl, 'Histórico', 'width=600,height=800,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes');
   };
 
-  // 🔴 NOVA FUNÇÃO: ABRIR GALERIA POP-OUT
   const handleOpenGallery = () => {
       if (!examId) return;
       const baseUrl = window.location.href.split('#')[0];
       const galleryUrl = `${baseUrl}#/gallery/${examId}`;
-      window.open(galleryUrl, 'Galeria de Imagens', 'width=1000,height=800,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes');
+      window.open(galleryUrl, 'Galeria', 'width=1000,height=800,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes');
   };
 
   const saveExam = async () => {
@@ -140,7 +139,7 @@ export default function ExamPage() {
   };
 
   const handleResetImage = async (imgId) => {
-      if (!window.confirm('Restaurar imagem original?')) return;
+      if (!window.confirm('Restaurar original?')) return;
       try {
           const examData = await db.getExam(examId);
           const imageIndex = examData.images.findIndex(i => i.id === imgId);
@@ -163,7 +162,7 @@ export default function ExamPage() {
             examData.images[imageIndex] = updatedImage;
             await db.updateExam(examId, examData);
             setExamImages(prev => prev.map(img => img.id === editingImage.id ? updatedImage : img));
-            toast.success('Imagem salva!');
+            toast.success('Salva!');
         }
         setEditingImage(null);
     } catch (e) { toast.error('Erro ao salvar'); }
@@ -402,13 +401,10 @@ export default function ExamPage() {
           </div>
         </div>
         <div className="flex gap-2">
-           {/* BOTÃO HISTÓRICO */}
-           <Button variant="secondary" size="sm" onClick={handleOpenHistory} title="Ver exames anteriores">
+           <Button variant="secondary" size="sm" onClick={handleOpenHistory}>
              <History className="h-4 w-4 mr-2"/> Histórico
            </Button>
-
-           {/* BOTÃO GALERIA POP-OUT (NOVO) */}
-           <Button variant="secondary" size="sm" onClick={handleOpenGallery} title="Abrir Galeria em Nova Janela">
+           <Button variant="secondary" size="sm" onClick={handleOpenGallery}>
              <Images className="h-4 w-4 mr-2"/> Galeria
            </Button>
 
@@ -580,7 +576,6 @@ function OrganEditor({ organ, templates, onChange }) {
     const marker = type === 'bold' ? '**' : '*';
     const newText = text.substring(0, start) + `${marker}${selected}${marker}` + text.substring(end);
     updateText(newText);
-    
     setTimeout(() => {
         textAreaRef.current.focus();
         textAreaRef.current.selectionStart = start + marker.length;
@@ -590,7 +585,9 @@ function OrganEditor({ organ, templates, onChange }) {
 
   return (
     <>
-        <h2 className="text-2xl font-bold text-primary flex items-center gap-2 mb-4">{organ.organ_name}</h2>
+        <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-primary flex items-center gap-2">{organ.organ_name}</h2>
+        </div>
         <div className="grid grid-cols-2 gap-4 h-[calc(100%-4rem)]">
             <div className="flex flex-col gap-3 h-full">
                 <div className="bg-muted/20 p-3 rounded border">
@@ -598,13 +595,7 @@ function OrganEditor({ organ, templates, onChange }) {
                         {[1, 2, 3].map(num => (
                             <div key={num} className="flex items-center gap-2">
                                 <span className="text-xs font-bold text-muted-foreground w-6">M{num}</span>
-                                <Input 
-                                    className="h-7 bg-white text-sm" 
-                                    placeholder="0.0"
-                                    type="number"
-                                    value={measurements[`m${num}`]?.value || ''}
-                                    onChange={(e) => setMeasurement(num, e.target.value, 'cm')}
-                                />
+                                <Input className="h-7 bg-white text-sm" placeholder="0.0" type="number" value={measurements[`m${num}`]?.value || ''} onChange={(e) => setMeasurement(num, e.target.value, 'cm')} />
                                 <span className="text-xs text-muted-foreground">cm</span>
                             </div>
                         ))}
@@ -618,13 +609,8 @@ function OrganEditor({ organ, templates, onChange }) {
                             <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => insertFormatting('italic')} title="Itálico"><Italic className="h-3 w-3"/></Button>
                         </div>
                     </div>
-                    <Textarea 
-                        ref={textAreaRef}
-                        className="flex-1 resize-none font-mono text-base p-4 leading-relaxed shadow-sm" 
-                        value={text} 
-                        onChange={e => updateText(e.target.value)} 
-                        placeholder="Escreva aqui..." 
-                    />
+                    <Textarea ref={textAreaRef} className="flex-1 resize-none font-mono text-base p-4 leading-relaxed shadow-sm" value={text} onChange={e => updateText(e.target.value)} placeholder="Escreva aqui..." />
+                    <p className="text-xs text-muted-foreground mt-1">Dica: Use **negrito** e *itálico*.</p>
                 </div>
             </div>
             <Card className="flex flex-col h-full border-l-4 border-l-primary/20">
