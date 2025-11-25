@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Upload, Save, Download, X, Check, ArrowLeft, Trash2, Plus, Printer, Bold, Italic, Edit, RotateCcw } from 'lucide-react';
+import { Upload, Save, Download, X, Check, ArrowLeft, Trash2, Plus, Printer, Bold, Italic, Edit, RotateCcw, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { db } from '@/services/database';
 import { 
@@ -15,7 +15,7 @@ import {
   ImageRun, Header, SectionType, PageBreak, Table, TableRow, TableCell, 
   WidthType, BorderStyle 
 } from 'docx';
-import { getStructuresForExam, getExamTypeName } from '@/lib/exam_types';
+import { getStructuresForExam } from '@/lib/exam_types';
 import { translate, getAvailableLanguages } from '@/services/translation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
@@ -86,6 +86,22 @@ export default function ExamPage() {
     } catch (error) { toast.error('Erro ao carregar'); }
   };
 
+  // 🔴 NOVA FUNÇÃO: ABRIR HISTÓRICO EM JANELA SEPARADA
+  const handleOpenHistory = () => {
+      if (!patient) return;
+      
+      // Detecta se está rodando em arquivo local (Electron) ou servidor (Dev)
+      const baseUrl = window.location.href.split('#')[0];
+      const historyUrl = `${baseUrl}#/history/${patient.id}`;
+      
+      // Abre uma janela popup limpa
+      window.open(
+          historyUrl, 
+          'Histórico do Paciente', 
+          'width=600,height=800,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes'
+      );
+  };
+
   const saveExam = async () => {
     try {
       await db.updateExam(examId, {
@@ -106,14 +122,9 @@ export default function ExamPage() {
         await new Promise((resolve) => {
           const reader = new FileReader();
           reader.onload = async (e) => {
-            // Salva já com o campo originalData
-            const imgData = { 
-                filename: file.name, 
-                data: e.target.result,
-                originalData: e.target.result 
-            };
-            await db.saveImage(examId, imgData);
-            resolve();
+             const imgData = { filename: file.name, data: e.target.result, originalData: e.target.result };
+             await db.saveImage(examId, imgData);
+             resolve();
           };
           reader.readAsDataURL(file);
         });
@@ -129,24 +140,16 @@ export default function ExamPage() {
     setExamImages(prev => prev.filter(img => img.id !== imageId));
   };
 
-  // 🔴 NOVO: RESETAR IMAGEM
   const handleResetImage = async (imgId) => {
-      if (!window.confirm('Restaurar imagem original? Todas as edições serão perdidas.')) return;
-      
+      if (!window.confirm('Restaurar imagem original?')) return;
       try {
           const examData = await db.getExam(examId);
           const imageIndex = examData.images.findIndex(i => i.id === imgId);
-          
           if (imageIndex !== -1 && examData.images[imageIndex].originalData) {
-              // Restaura dados originais
               examData.images[imageIndex].data = examData.images[imageIndex].originalData;
               await db.updateExam(examId, examData);
-              
-              // Atualiza tela
               setExamImages(prev => prev.map(img => img.id === imgId ? examData.images[imageIndex] : img));
-              toast.success('Imagem restaurada!');
-          } else {
-              toast.error('Não há versão original salva para esta imagem.');
+              toast.success('Restaurada!');
           }
       } catch (e) { toast.error('Erro ao restaurar'); }
   };
@@ -154,17 +157,9 @@ export default function ExamPage() {
   const handleSaveEditedImage = async (newDataBase64) => {
     if (!editingImage) return;
     try {
-        // Mantém o originalData ao salvar a edição
-        const updatedImage = { 
-            ...editingImage, 
-            data: newDataBase64,
-            // Se não tinha originalData (imagem antiga), o estado atual vira o original antes de salvar
-            originalData: editingImage.originalData || editingImage.data 
-        };
-        
+        const updatedImage = { ...editingImage, data: newDataBase64, originalData: editingImage.originalData || editingImage.data };
         const examData = await db.getExam(examId);
         const imageIndex = examData.images.findIndex(img => img.id === editingImage.id);
-        
         if (imageIndex !== -1) {
             examData.images[imageIndex] = updatedImage;
             await db.updateExam(examId, examData);
@@ -172,7 +167,7 @@ export default function ExamPage() {
             toast.success('Imagem salva!');
         }
         setEditingImage(null);
-    } catch (e) { toast.error('Erro ao salvar edição'); }
+    } catch (e) { toast.error('Erro ao salvar'); }
   };
 
   const updateOrganData = (index, field, value) => {
@@ -181,7 +176,6 @@ export default function ExamPage() {
     setOrgansData(newOrgans);
   };
 
-  // Helpers
   const calculateAge = (patient) => {
     if (patient.birth_year) {
         const currentYear = new Date().getFullYear();
@@ -386,7 +380,6 @@ export default function ExamPage() {
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       
-      {/* Modal do Editor */}
       {editingImage && (
           <ImageEditor 
             isOpen={!!editingImage}
@@ -396,7 +389,6 @@ export default function ExamPage() {
           />
       )}
 
-      {/* Header UI */}
       <div className="h-14 border-b flex items-center justify-between px-4 bg-card shrink-0 no-print">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')}><ArrowLeft className="h-5 w-5"/></Button>
@@ -411,6 +403,11 @@ export default function ExamPage() {
           </div>
         </div>
         <div className="flex gap-2">
+           {/* BOTÃO HISTÓRICO ADICIONADO */}
+           <Button variant="secondary" size="sm" onClick={handleOpenHistory} title="Ver exames anteriores">
+             <History className="h-4 w-4 mr-2"/> Histórico
+           </Button>
+
            <Select value={reportLanguage} onValueChange={setReportLanguage}>
             <SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -442,25 +439,11 @@ export default function ExamPage() {
                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
                                 <Edit className="h-6 w-6" />
                            </div>
-                           
-                           {/* Botões: Lixo e Reset */}
                            <div className="absolute top-1 right-1 flex gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
                                {img.originalData && (
-                                   <button 
-                                     onClick={(e) => { e.stopPropagation(); handleResetImage(img.id); }} 
-                                     className="bg-yellow-500 text-white p-1 rounded hover:bg-yellow-600"
-                                     title="Restaurar Original"
-                                   >
-                                     <RotateCcw className="h-3 w-3" />
-                                   </button>
+                                   <button onClick={(e) => { e.stopPropagation(); handleResetImage(img.id); }} className="bg-yellow-500 text-white p-1 rounded hover:bg-yellow-600" title="Restaurar Original"><RotateCcw className="h-3 w-3" /></button>
                                )}
-                               <button 
-                                 onClick={(e) => { e.stopPropagation(); handleDeleteImage(img.id); }} 
-                                 className="bg-red-500 text-white p-1 rounded hover:bg-red-600"
-                                 title="Apagar"
-                               >
-                                 <Trash2 className="h-3 w-3" />
-                               </button>
+                               <button onClick={(e) => { e.stopPropagation(); handleDeleteImage(img.id); }} className="bg-red-500 text-white p-1 rounded hover:bg-red-600"><Trash2 className="h-3 w-3" /></button>
                            </div>
                          </div>
                        ))}
@@ -495,7 +478,6 @@ export default function ExamPage() {
          </ResizablePanelGroup>
       </div>
       
-      {/* PDF */}
       <div id="printable-report">
          <table className="report-table">
             <thead>

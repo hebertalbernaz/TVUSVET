@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { HashRouter, Routes, Route } from 'react-router-dom'; // 🔴 MUDANÇA AQUI: HashRouter
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from 'next-themes';
 import '@/App.css';
-import '@/print.css';
+// import '@/print.css'; // (Já está unificado no App.css se você seguiu o passo anterior)
 import { db } from '@/services/database';
 import HomePage from '@/pages/HomePage';
 import SettingsPage from '@/pages/SettingsPage';
-import ExamPageV2 from '@/pages/ExamPageV2'; // Certifique-se que está importando o V2
+import ExamPage from '@/pages/ExamPageV2'; // Mantendo ExamPage conforme seu uso atual
+import PatientHistoryPage from '@/pages/PatientHistoryPage'; // 1. IMPORTAR AQUI
 import { Toaster } from '@/components/ui/sonner';
 
 function App() {
@@ -33,12 +34,13 @@ function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <div className="App">
-        {/* 🔴 IMPORTANTE: HashRouter adiciona uma # na URL, permitindo rodar offline */}
         <HashRouter>
           <Routes>
             <Route path="/" element={<HomePage />} />
-            <Route path="/exam/:examId" element={<ExamPageV2 />} />
+            <Route path="/exam/:examId" element={<ExamPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            {/* 2. NOVA ROTA DE HISTÓRICO */}
+            <Route path="/history/:patientId" element={<PatientHistoryPage />} />
           </Routes>
         </HashRouter>
         <Toaster position="top-right" />
