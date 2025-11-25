@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { HashRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from 'next-themes';
 import '@/App.css';
-// import '@/print.css'; // (Já está unificado no App.css se você seguiu o passo anterior)
+// import '@/print.css'; // (Já está unificado no App.css)
 import { db } from '@/services/database';
 import HomePage from '@/pages/HomePage';
 import SettingsPage from '@/pages/SettingsPage';
-import ExamPage from '@/pages/ExamPageV2'; // Mantendo ExamPage conforme seu uso atual
-import PatientHistoryPage from '@/pages/PatientHistoryPage'; // 1. IMPORTAR AQUI
+import ExamPage from '@/pages/ExamPageV2';
+import PatientHistoryPage from '@/pages/PatientHistoryPage';
+import ImageGalleryPage from '@/pages/ImageGalleryPage'; // 1. IMPORTAR AQUI
 import { Toaster } from '@/components/ui/sonner';
 
 function App() {
@@ -39,8 +40,9 @@ function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/exam/:examId" element={<ExamPage />} />
             <Route path="/settings" element={<SettingsPage />} />
-            {/* 2. NOVA ROTA DE HISTÓRICO */}
             <Route path="/history/:patientId" element={<PatientHistoryPage />} />
+            {/* 2. NOVA ROTA DE GALERIA */}
+            <Route path="/gallery/:examId" element={<ImageGalleryPage />} />
           </Routes>
         </HashRouter>
         <Toaster position="top-right" />

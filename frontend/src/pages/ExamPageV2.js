@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Upload, Save, Download, X, Check, ArrowLeft, Trash2, Plus, Printer, Bold, Italic, Edit, RotateCcw, History } from 'lucide-react';
+import { Upload, Save, Download, X, Check, ArrowLeft, Trash2, Plus, Printer, Bold, Italic, Edit, RotateCcw, History, Images } from 'lucide-react'; // Adicionado 'Images'
 import { toast } from 'sonner';
 import { db } from '@/services/database';
 import { 
@@ -86,20 +86,19 @@ export default function ExamPage() {
     } catch (error) { toast.error('Erro ao carregar'); }
   };
 
-  // 🔴 NOVA FUNÇÃO: ABRIR HISTÓRICO EM JANELA SEPARADA
   const handleOpenHistory = () => {
       if (!patient) return;
-      
-      // Detecta se está rodando em arquivo local (Electron) ou servidor (Dev)
       const baseUrl = window.location.href.split('#')[0];
       const historyUrl = `${baseUrl}#/history/${patient.id}`;
-      
-      // Abre uma janela popup limpa
-      window.open(
-          historyUrl, 
-          'Histórico do Paciente', 
-          'width=600,height=800,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes'
-      );
+      window.open(historyUrl, 'Histórico do Paciente', 'width=600,height=800,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes');
+  };
+
+  // 🔴 NOVA FUNÇÃO: ABRIR GALERIA POP-OUT
+  const handleOpenGallery = () => {
+      if (!examId) return;
+      const baseUrl = window.location.href.split('#')[0];
+      const galleryUrl = `${baseUrl}#/gallery/${examId}`;
+      window.open(galleryUrl, 'Galeria de Imagens', 'width=1000,height=800,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes');
   };
 
   const saveExam = async () => {
@@ -403,9 +402,14 @@ export default function ExamPage() {
           </div>
         </div>
         <div className="flex gap-2">
-           {/* BOTÃO HISTÓRICO ADICIONADO */}
+           {/* BOTÃO HISTÓRICO */}
            <Button variant="secondary" size="sm" onClick={handleOpenHistory} title="Ver exames anteriores">
              <History className="h-4 w-4 mr-2"/> Histórico
+           </Button>
+
+           {/* BOTÃO GALERIA POP-OUT (NOVO) */}
+           <Button variant="secondary" size="sm" onClick={handleOpenGallery} title="Abrir Galeria em Nova Janela">
+             <Images className="h-4 w-4 mr-2"/> Galeria
            </Button>
 
            <Select value={reportLanguage} onValueChange={setReportLanguage}>
@@ -586,10 +590,7 @@ function OrganEditor({ organ, templates, onChange }) {
 
   return (
     <>
-        <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-primary flex items-center gap-2">{organ.organ_name}</h2>
-        </div>
-        
+        <h2 className="text-2xl font-bold text-primary flex items-center gap-2 mb-4">{organ.organ_name}</h2>
         <div className="grid grid-cols-2 gap-4 h-[calc(100%-4rem)]">
             <div className="flex flex-col gap-3 h-full">
                 <div className="bg-muted/20 p-3 rounded border">
