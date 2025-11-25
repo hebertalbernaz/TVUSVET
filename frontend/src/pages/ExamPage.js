@@ -86,17 +86,21 @@ export default function ExamPage() {
     } catch (error) { toast.error('Erro ao carregar'); }
   };
 
-  const handleOpenHistory = () => {
+const handleOpenHistory = () => {
       if (!patient) return;
       const baseUrl = window.location.href.split('#')[0];
-      const historyUrl = `${baseUrl}#/history/${patient.id}`;
+      // 🔴 CORREÇÃO: Adiciona ?t=agora para forçar limpeza de cache na nova janela
+      const historyUrl = `${baseUrl}?t=${Date.now()}#/history/${patient.id}`;
+      
       window.open(historyUrl, 'Histórico', 'width=600,height=800,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes');
   };
 
   const handleOpenGallery = () => {
       if (!examId) return;
       const baseUrl = window.location.href.split('#')[0];
-      const galleryUrl = `${baseUrl}#/gallery/${examId}`;
+      // 🔴 CORREÇÃO: Mesmo truque para a galeria
+      const galleryUrl = `${baseUrl}?t=${Date.now()}#/gallery/${examId}`;
+      
       window.open(galleryUrl, 'Galeria', 'width=1000,height=800,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes');
   };
 
