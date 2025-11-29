@@ -20,6 +20,7 @@ import { translate, getAvailableLanguages } from '@/services/translation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { ImageEditor } from '@/components/ImageEditor';
+import '@/print.css';
 
 export default function ExamPage() {
   const { examId } = useParams();
