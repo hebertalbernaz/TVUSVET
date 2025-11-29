@@ -14,6 +14,7 @@ export function PatientForm({ patient, onSuccess, onCancel }) {
     species: 'dog',
     breed: '',
     sex: 'male',
+    size: 'medium', // 🟢 ADICIONADO: Valor padrão para porte
     is_neutered: false,
     birth_year: '',
     weight: '',
@@ -36,7 +37,8 @@ export function PatientForm({ patient, onSuccess, onCancel }) {
       setFormData({
         ...patient,
         weight: patient.weight || '',
-        birth_year: year
+        birth_year: year,
+        size: patient.size || 'medium' // 🟢 GARANTE: Recupera o valor existente ou usa médio
       });
 
       // Calcula a idade inicial se tiver ano
@@ -105,7 +107,8 @@ export function PatientForm({ patient, onSuccess, onCancel }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      {/* 🟢 REORGANIZADO: Agora são 3 colunas para incluir o Porte */}
+      <div className="grid grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label htmlFor="species">Espécie</Label>
           <Select value={formData.species} onValueChange={val => setFormData({...formData, species: val})}>
@@ -117,9 +120,23 @@ export function PatientForm({ patient, onSuccess, onCancel }) {
             </SelectContent>
           </Select>
         </div>
+
         <div className="space-y-2">
           <Label htmlFor="breed">Raça</Label>
           <Input id="breed" value={formData.breed} onChange={e => setFormData({...formData, breed: e.target.value})} />
+        </div>
+
+        {/* 🟢 NOVO CAMPO: Porte */}
+        <div className="space-y-2">
+          <Label htmlFor="size">Porte</Label>
+          <Select value={formData.size} onValueChange={val => setFormData({...formData, size: val})}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="small">Pequeno</SelectItem>
+              <SelectItem value="medium">Médio</SelectItem>
+              <SelectItem value="large">Grande</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

@@ -34,8 +34,11 @@ class DatabaseService {
         clinic_address: '',
         veterinarian_name: '',
         crmv: '',
+        professional_email: '', // NOVO
+        professional_phone: '', // NOVO
         letterhead_path: null,
         letterhead_filename: null,
+        signature_path: null,   // NOVO (Assinatura)
         letterhead_margins_mm: { top: 30, left: 15, right: 15, bottom: 20 },
         saved_backup_passphrase: null
       });

@@ -34,6 +34,7 @@ export default function ExamPage() {
   
   const [examWeight, setExamWeight] = useState('');
   const [examDateTime, setExamDateTime] = useState('');
+  const [referringVet, setReferringVet] = useState(''); // 🟢 NOVO
   const [examImages, setExamImages] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [reportLanguage, setReportLanguage] = useState('pt');
@@ -53,7 +54,8 @@ export default function ExamPage() {
       const examRes = await db.getExam(examId);
       if (!examRes) return navigate('/');
       setExam(examRes);
-      setExamWeight(examRes.exam_weight || '');
+            setExamWeight(examRes.exam_weight || '');
+      setReferringVet(examRes.referring_vet || ''); // 🟢 CARREGAR VET SOLICITANTE
       
       let initialDate = new Date();
       if (examRes.exam_date) {
@@ -107,11 +109,13 @@ const handleOpenHistory = () => {
 
   const saveExam = async () => {
     try {
-      await db.updateExam(examId, {
+await db.updateExam(examId, {
         organs_data: organsData,
         exam_weight: examWeight ? parseFloat(examWeight) : null,
-        exam_date: examDateTime ? new Date(examDateTime).toISOString() : new Date().toISOString()
+        exam_date: examDateTime ? new Date(examDateTime).toISOString() : new Date().toISOString(), // 🟢 Adicione a vírgula aqui
+        referring_vet: referringVet // 🟢 NOVO
       });
+
       toast.success('Salvo!');
     } catch (error) { toast.error('Erro ao salvar'); }
   };
@@ -402,6 +406,14 @@ const handleOpenHistory = () => {
                <Input className="h-6 w-16 text-xs px-1" placeholder="Peso" value={examWeight} onChange={e => setExamWeight(e.target.value)} /> kg
                <span className="ml-2 border-l pl-2">Data:</span>
                <Input type="datetime-local" className="h-6 w-auto min-w-[220px] text-xs px-1" value={examDateTime} onChange={e => setExamDateTime(e.target.value)} />
+               {/* 🟢 NOVO INPUT AQUI */}
+               <span className="ml-2 border-l pl-2">Vet. Solicitante:</span>
+               <Input 
+                  className="h-6 w-40 text-xs px-1" 
+                  placeholder="Nome do Colega" 
+                  value={referringVet} 
+                  onChange={e => setReferringVet(e.target.value)} 
+               />
             </div>
           </div>
         </div>
@@ -483,17 +495,33 @@ const handleOpenHistory = () => {
          </ResizablePanelGroup>
       </div>
       
-      <div id="printable-report">
+<div id="printable-report">
          <table className="report-table">
             <thead>
                <tr>
                   <td className="report-header-cell">
-                     <div style={{width: '100%', display: 'flex', justifyContent: 'center', marginBottom: '10px'}}>
-                        {settings?.letterhead_path?.startsWith('data:image') ? (
-                            <img src={settings.letterhead_path} style={{maxWidth: '90%', maxHeight: '3.5cm', objectFit: 'contain'}} alt="Cabeçalho" />
-                        ) : (
-                            <h1 className="text-2xl font-bold uppercase text-center border-b pb-2 w-full">{settings?.clinic_name || 'LAUDO VETERINÁRIO'}</h1>
-                        )}
+                     {/* CABEÇALHO FLEX: LOGO ESQUERDA | DADOS DIREITA */}
+                     <div className="header-flex">
+                        <div className="header-logo">
+                           {settings?.letterhead_path && (
+                              <img src={settings.letterhead_path} alt="Logo" />
+                           )}
+                        </div>
+                        <div className="header-info">
+                           <h1 className="clinic-name">{settings?.clinic_name}</h1>
+                           <div className="prof-info">
+                              <p><strong>{settings?.veterinarian_name}</strong></p>
+                              {settings?.crmv && <p>CRMV: {settings.crmv}</p>}
+                              {settings?.professional_phone && <p>Tel: {settings.professional_phone}</p>}
+                              {settings?.professional_email && <p>{settings.professional_email}</p>}
+                              {settings?.clinic_address && <p className="address">{settings.clinic_address}</p>}
+                              {referringVet && (
+                                <p className="ref-vet">
+                                  <strong>Solicitante:</strong> Dr(a). {referringVet}
+                                </p>
+                              )}
+                           </div>
+                        </div>
                      </div>
                   </td>
                </tr>
@@ -501,38 +529,37 @@ const handleOpenHistory = () => {
             <tbody>
                <tr>
                   <td className="report-content-cell">
-                     <div className="border-b pb-4 mb-6 text-sm space-y-1 avoid-break">
-                        <div className="grid grid-cols-2 gap-4">
-                            <p><strong>{translate('Paciente', reportLanguage)}:</strong> {patient.name}</p>
-                            <p><strong>{translate('Espécie', reportLanguage)}:</strong> {translate(patient.species, reportLanguage)}</p>
+                     {/* DADOS DO PACIENTE */}
+                     <div className="patient-box">
+                        <div className="pb-row">
+                            <span><strong>Paciente:</strong> {patient.name}</span>
+                            <span><strong>Espécie:</strong> {translate(patient.species, reportLanguage)}</span>
+                            <span><strong>Raça:</strong> {patient.breed}</span>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <p><strong>{translate('Raça', reportLanguage)}:</strong> {patient.breed}</p>
-                            <p><strong>{translate('Idade', reportLanguage)}:</strong> {calculateAge(patient)}</p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <p><strong>{translate('Tutor', reportLanguage)}:</strong> {patient.owner_name}</p>
-                            <p><strong>{translate('Data/Hora', reportLanguage)}:</strong> {formatDateTimeText(examDateTime)}</p>
+                        <div className="pb-row">
+                            <span><strong>Tutor:</strong> {patient.owner_name}</span>
+                            <span><strong>Idade:</strong> {calculateAge(patient)}</span>
+                            <span><strong>Data:</strong> {formatDateTimeText(examDateTime)}</span>
                         </div>
                      </div>
 
-                     <h2 className="text-xl font-bold text-center mb-6 uppercase avoid-break">{translate('Laudo Ultrassonográfico', reportLanguage)}</h2>
+                     <h2 className="report-title">{translate('Laudo Ultrassonográfico', reportLanguage)}</h2>
 
                      {organsData.map((o, i) => o.report_text && (
-                        <div key={i} className="mb-6 avoid-break">
-                           <h3 className="font-bold text-lg mb-1">{translate(o.organ_name, reportLanguage)}</h3>
-                           <div className="whitespace-pre-wrap text-justify text-sm leading-relaxed">
+                        <div key={i} className="organ-section avoid-break">
+                           <h3 className="organ-title">{translate(o.organ_name, reportLanguage)}</h3>
+                           <div className="organ-text">
                                {renderProcessedTextHTML(o.report_text, o.measurements)}
                            </div>
                            {getReferenceValueText(o.organ_name) && (
-                               <p className="text-xs text-gray-500 mt-1 italic">{getReferenceValueText(o.organ_name)}</p>
+                               <p className="ref-value">{getReferenceValueText(o.organ_name)}</p>
                            )}
                         </div>
                      ))}
 
                      {examImages.length > 0 && (
-                        <div className="mt-8">
-                           <h3 className="font-bold text-center mb-4 avoid-break">{translate('IMAGENS', reportLanguage)}</h3>
+                        <div className="images-section avoid-break">
+                           <h3 className="images-title">{translate('IMAGENS', reportLanguage)}</h3>
                            <div className="print-image-grid">
                               {examImages.map(img => (
                                  <div key={img.id} className="print-image-item">
@@ -540,6 +567,16 @@ const handleOpenHistory = () => {
                                  </div>
                               ))}
                            </div>
+                        </div>
+                     )}
+
+                     {/* ASSINATURA NO FINAL */}
+                     {settings?.signature_path && (
+                        <div className="signature-box avoid-break">
+                           <img src={settings.signature_path} alt="Assinatura" />
+                           <div className="signature-line"></div>
+                           <p>{settings.veterinarian_name}</p>
+                           <p>CRMV {settings.crmv}</p>
                         </div>
                      )}
                   </td>

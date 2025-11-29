@@ -155,56 +155,59 @@ const loadExams = async () => {
             <DialogHeader>
               <DialogTitle>Exames de {patient.name}</DialogTitle>
             </DialogHeader>
-            <ScrollArea className="max-h-[60vh]">
-              {exams.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">Nenhum exame realizado</p>
-              ) : (
-                <div className="space-y-3">
-                  {exams.map(exam => (
-                    <Card key={exam.id} className="p-4 hover:bg-gray-50">
-                      <div className="flex justify-between items-center">
-                        <div 
-                          className="flex-1 cursor-pointer" 
-                          onClick={() => navigate(`/exam/${exam.id}`)}
-                        >
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium">
-                              {getExamTypeName(exam.exam_type || 'ultrasound_abd')}
-                            </p>
-                            <Badge variant="outline" className="text-xs">
-                              {new Date(exam.exam_date).toLocaleDateString('pt-BR')}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-gray-500 mt-1">
-                            {exam.organs_data?.length || 0} estruturas • {exam.images?.length || 0} imagens
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => navigate(`/exam/${exam.id}`)}
-                          >
-                            <FileText className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setExamToDelete(exam.id);
-                            }}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
+<ScrollArea className="max-h-[60vh]">
+  {exams.length === 0 ? (
+    <p className="text-gray-500 text-center py-8">Nenhum exame realizado</p>
+  ) : (
+    <div className="space-y-3">
+      {exams.map(exam => (
+        // 👇 A CORREÇÃO É NESTA LINHA ABAIXO 👇
+        <Card key={exam.id} className="p-4 transition-colors cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"> 
+          <div className="flex justify-between items-center">
+            <div 
+              className="flex-1" // removido cursor-pointer daqui pois coloquei no Card pai
+              onClick={() => navigate(`/exam/${exam.id}`)}
+            >
+              <div className="flex items-center gap-2">
+                {/* Adicionado dark:text-white para garantir */}
+                <p className="font-medium text-foreground"> 
+                  {getExamTypeName(exam.exam_type || 'ultrasound_abd')}
+                </p>
+                <Badge variant="outline" className="text-xs">
+                  {new Date(exam.exam_date).toLocaleDateString('pt-BR')}
+                </Badge>
+              </div>
+              {/* Adicionado dark:text-gray-400 para melhorar leitura do subtítulo */}
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1"> 
+                {exam.organs_data?.length || 0} estruturas • {exam.images?.length || 0} imagens
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => navigate(`/exam/${exam.id}`)}
+              >
+                <FileText className="h-4 w-4" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExamToDelete(exam.id);
+                }}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
+  )}
+</ScrollArea>
           </DialogContent>
         </Dialog>
 
