@@ -1,16 +1,14 @@
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-// Função para combinar classes do Tailwind (já existia)
 export function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
-// Nova função auxiliar para converter Base64 em Blob (Necessária para o DICOM)
+// 👇 Esta função é ESSENCIAL para o DICOM funcionar
 export function dataURItoBlob(dataURI) {
   if (!dataURI) return null;
   
-  // Verifica se o dataURI tem o formato esperado
   const splitData = dataURI.split(',');
   if (splitData.length < 2) return null;
 

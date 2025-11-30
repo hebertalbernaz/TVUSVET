@@ -21,10 +21,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { ImageEditor } from '@/components/ImageEditor';
 import '@/print.css';
-import { parseDicomTags } from '@/services/dicomService';
-import { DicomViewer } from '@/components/DicomViewer';
-import { FileDigit } from 'lucide-react'; // Ícone para representar o arquivo DICOM na lista
-import { cn, dataURItoBlob } from '@/lib/utils'; // 🟢 DICOM
+import { parseDicomTags } from '@/services/dicomService'; // DICOM 
+import { DicomViewer } from '@/components/DicomViewer';   // DICOM Viewer Component
+import { FileDigit } from 'lucide-react';                 // DICOM
+import { cn, dataURItoBlob } from '@/lib/utils';          // DICOM 
 
 export default function ExamPage() {
   const { examId } = useParams();
@@ -125,23 +125,52 @@ await db.updateExam(examId, {
   };
 
 const handleImageUpload = async (event) => {
-    const files = event.target.files;
+const files = event.target.files;
     if (!files.length) return;
     setUploading(true);
     
     try {
       for (let file of files) {
-        const isDicom = file.name.toLowerCase().endsWith('.dcm');
+        // --- NOVA DETECÇÃO INTELIGENTE DE DICOM ---
+        let isDicom = file.name.toLowerCase().endsWith('.dcm');
         
-        // 1. Se for DICOM, tenta extrair dados para Worklist
-        if (isDicom) {
-            const tags = await parseDicomTags(file);
-            console.log("Metadados:", tags);
-            // Aqui você pode preencher dados automaticamente se quiser:
-            // if (!patient.name && tags.PatientName) { ... }
+        // Se não tiver extensão .dcm, verificamos o código interno do arquivo
+        if (!isDicom) {
+             await new Promise((resolve) => {
+                 // Lê apenas os primeiros 132 bytes para checar a assinatura
+                 const slice = file.slice(0, 132);
+                 const reader = new FileReader();
+                 reader.onload = (e) => {
+                     try {
+                         const view = new DataView(e.target.result);
+                         if (view.byteLength >= 132) {
+                             // O padrão DICOM exige a string "DICM" na posição 128
+                             const magic = String.fromCharCode(
+                                 view.getUint8(128), view.getUint8(129), view.getUint8(130), view.getUint8(131)
+                             );
+                             if (magic === 'DICM') isDicom = true;
+                         }
+                     } catch(err) { console.log("Não é DICOM"); }
+                     resolve();
+                 };
+                 reader.readAsArrayBuffer(slice);
+             });
         }
 
-        // 2. Salva no Banco
+        // --- 2. Extrai Tags (Worklist) se for DICOM ---
+        if (isDicom) {
+            try {
+                const tags = await parseDicomTags(file);
+                console.log("Metadados DICOM:", tags);
+                if (!patient.name && tags.PatientName) {
+                    toast.info(`Dados encontrados: ${tags.PatientName}`);
+                }
+            } catch (e) {
+                console.error("Erro ao ler tags:", e);
+            }
+        }
+
+        // --- 3. Salva no Banco ---
         await new Promise((resolve) => {
           const reader = new FileReader();
           reader.onload = async (e) => {
@@ -149,9 +178,10 @@ const handleImageUpload = async (event) => {
              
              const imgData = { 
                  filename: file.name, 
-                 data: base64, // Salva o conteúdo (para DICOM é um base64 gigante)
+                 data: base64, 
                  originalData: base64,
-                 mimeType: isDicom ? 'application/dicom' : file.type 
+                 // Força o tipo correto se detectamos que é DICOM
+                 mimeType: isDicom ? 'application/dicom' : (file.type || 'application/octet-stream')
              };
              await db.saveImage(examId, imgData);
              resolve();
@@ -160,7 +190,6 @@ const handleImageUpload = async (event) => {
         });
       }
       
-      // Atualiza lista
       const updated = await db.getExam(examId);
       setExamImages(updated.images || []);
     } finally { setUploading(false); }
@@ -410,22 +439,23 @@ const handleImageUpload = async (event) => {
   );
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
-      
+    <div className="h-screen flex flex-col bg-background overflow-hidden">   
 {editingImage && (
     (editingImage.mimeType === 'application/dicom' || editingImage.filename.endsWith('.dcm')) ? (
-        <Dialog open={!!editingImage} onOpenChange={() => setEditingImage(null)}>
-            <DialogContent className="max-w-[95vw] h-[90vh] p-0 bg-black border-none">
-                {/* Aqui carregamos a Workstation DICOM */}
-                <div className="w-full h-full relative">
-                    <button onClick={() => setEditingImage(null)} className="absolute top-4 right-4 z-50 text-white bg-red-600 p-2 rounded">
-                        <X className="h-4 w-4" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <div className="relative w-full max-w-6xl h-[90vh] bg-black border border-gray-800 rounded-lg shadow-2xl overflow-hidden flex flex-col">
+                <div className="flex justify-between items-center p-2 bg-gray-900 border-b border-gray-800">
+                    <span className="text-white text-sm font-bold ml-2">Visualizador DICOM</span>
+                    <button onClick={() => setEditingImage(null)} className="text-white hover:bg-red-600 p-1 rounded transition-colors">
+                        <X className="h-5 w-5" />
                     </button>
-                    {/* Convertemos o Base64 de volta para Blob para o Cornerstone ler */}
+                </div>
+                <div className="flex-1 relative">
+                    {/* Componente DICOM */}
                     <DicomViewer imageBlob={dataURItoBlob(editingImage.data)} />
                 </div>
-            </DialogContent>
-        </Dialog>
+            </div>
+        </div>
     ) : (
         <ImageEditor 
             isOpen={!!editingImage}
@@ -485,14 +515,14 @@ const handleImageUpload = async (event) => {
                      <span className="text-xs font-bold text-muted-foreground">IMAGENS ({examImages.length})</span>
                      <label htmlFor="img-up" className="cursor-pointer bg-primary text-white p-1 rounded hover:opacity-80">
                         <Plus className="h-3 w-3" />
-                        <input id="img-up" type="file" multiple accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading}/>
+                        <input id="img-up" type="file" multiple accept="image/*,.dcm,application/dicom,*" className="hidden" onChange={handleImageUpload} disabled={uploading}/>
                      </label>
                   </div>
                   <ScrollArea className="flex-1 p-2">
                      <div className="space-y-2">
                        {examImages.map(img => (
-              <div key={img.id} className="relative group aspect-video bg-black/5 rounded overflow-hidden border cursor-pointer" onClick={() => setEditingImage(img)}>
-    {/* SE FOR DICOM, MOSTRA ÍCONE. SE NÃO, MOSTRA IMAGEM */}
+<div key={img.id} className="relative group aspect-video bg-black/5 rounded overflow-hidden border cursor-pointer" onClick={() => setEditingImage(img)}>
+    {/* VERIFICA SE É DICOM */}
     {img.mimeType === 'application/dicom' || img.filename.endsWith('.dcm') ? (
         <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900 text-gray-400">
             <FileDigit className="h-10 w-10 mb-2" />
