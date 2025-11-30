@@ -14,8 +14,7 @@ if (typeof window !== 'undefined' && !window.cornerstoneInitialized) {
     cornerstoneTools.external.cornerstoneMath = cornerstoneMath;
     cornerstoneTools.external.Hammer = Hammer;
 
-    // Define os caminhos absolutos baseados na URL atual
-    const baseUrl = window.location.origin; // ex: http://localhost:3000
+    const baseUrl = window.location.origin;
 
     const config = {
         maxWebWorkers: navigator.hardwareConcurrency || 1,
@@ -31,10 +30,13 @@ if (typeof window !== 'undefined' && !window.cornerstoneInitialized) {
         },
     };
     
-    console.log("Tentando carregar Workers de:", config.webWorkerPath);
     cornerstoneWADOImageLoader.webWorkerManager.initialize(config);
 
-    cornerstoneTools.init({ showSVGCursors: true, globalToolSyncEnabled: false });
+    cornerstoneTools.init({
+        showSVGCursors: true,
+        globalToolSyncEnabled: false,
+    });
+
     window.cornerstoneInitialized = true;
 }
 
@@ -50,7 +52,7 @@ export function DicomViewer({ imageBlob }) {
         const blob = new Blob([imageBlob], { type: 'application/dicom' });
         const id = cornerstoneWADOImageLoader.wadouri.fileManager.add(blob);
         setImageId(id);
-        setDetails(`Tamanho do arquivo: ${(blob.size / 1024).toFixed(2)} KB`);
+        setDetails(`Tamanho: ${(blob.size / 1024).toFixed(2)} KB`);
       } catch (err) {
         setStatus("Erro crítico ao montar arquivo.");
         console.error(err);
@@ -66,38 +68,43 @@ export function DicomViewer({ imageBlob }) {
 
     const loadAndRender = async () => {
         try {
-            setStatus("Carregando decodificadores...");
-            // Tenta carregar a imagem. Se o Worker falhar, vai cair no catch.
+            setStatus("Carregando...");
             const image = await cornerstone.loadImage(imageId);
             
             setStatus("Renderizando...");
             cornerstone.displayImage(element, image);
-            setStatus(null); // Sucesso!
+            setStatus(null);
 
-            // Ferramentas
+            // --- FERRAMENTAS ---
             const WwwcTool = cornerstoneTools.WwwcTool;
             const PanTool = cornerstoneTools.PanTool;
             const ZoomTool = cornerstoneTools.ZoomTool;
             const LengthTool = cornerstoneTools.LengthTool;
+            const ZoomMouseWheelTool = cornerstoneTools.ZoomMouseWheelTool; // 🔴 NOVO: Ferramenta de Scroll
 
+            // Adiciona ferramentas se ainda não existirem
             if (!cornerstoneTools.getToolForElement(element, 'Wwwc')) cornerstoneTools.addToolForElement(element, WwwcTool);
             if (!cornerstoneTools.getToolForElement(element, 'Pan')) cornerstoneTools.addToolForElement(element, PanTool);
             if (!cornerstoneTools.getToolForElement(element, 'Zoom')) cornerstoneTools.addToolForElement(element, ZoomTool);
             if (!cornerstoneTools.getToolForElement(element, 'Length')) cornerstoneTools.addToolForElement(element, LengthTool);
+            
+            // 🔴 NOVO: Adiciona a ferramenta de Wheel
+            if (!cornerstoneTools.getToolForElement(element, 'ZoomMouseWheel')) cornerstoneTools.addToolForElement(element, ZoomMouseWheelTool);
 
-            cornerstoneTools.setToolActiveForElement(element, 'Wwwc', { mouseButtonMask: 1 });
-            cornerstoneTools.setToolActiveForElement(element, 'Pan', { mouseButtonMask: 2 });
-            cornerstoneTools.setToolActiveForElement(element, 'Zoom', { mouseButtonMask: 4 });
+            // --- ATIVAÇÃO ---
+            cornerstoneTools.setToolActiveForElement(element, 'Wwwc', { mouseButtonMask: 1 }); // Esquerdo
+            cornerstoneTools.setToolActiveForElement(element, 'Pan', { mouseButtonMask: 2 });  // Direito
+            cornerstoneTools.setToolActiveForElement(element, 'Zoom', { mouseButtonMask: 4 }); // Meio (Clique)
+            
+            // 🔴 NOVO: Ativa o Scroll para Zoom
+            cornerstoneTools.setToolActiveForElement(element, 'ZoomMouseWheel', {}); 
             
         } catch (err) {
             console.error("Erro Cornerstone:", err);
-            // Diagnóstico de erro
             if (err.message && err.message.includes('404')) {
-                setStatus("Erro 404: O sistema não encontrou os arquivos .js na pasta public.");
-            } else if (err.message && err.message.includes('syntax')) {
-                setStatus("Erro de Sintaxe: O arquivo .js baixado pode estar corrompido (HTML em vez de JS).");
+                setStatus("Erro 404: Arquivos .js não encontrados na pasta public.");
             } else {
-                setStatus(`Erro: ${err.message || 'Falha desconhecida no Worker'}`);
+                setStatus(`Erro: ${err.message || 'Falha no Worker'}`);
             }
         }
     };
@@ -112,9 +119,8 @@ export function DicomViewer({ imageBlob }) {
         {status && (
             <div className="absolute z-10 flex flex-col items-center gap-2 max-w-md text-center">
                 <div className="text-white bg-red-900/90 border border-red-500 px-6 py-4 rounded shadow-2xl">
-                    <p className="font-bold text-lg mb-2">Estado: {status}</p>
+                    <p className="font-bold text-lg mb-2">{status}</p>
                     <p className="text-xs text-gray-300 font-mono">{details}</p>
-                    <p className="text-xs text-yellow-300 mt-2">Dica: Abra o Console (F12) para ver o link exato que falhou.</p>
                 </div>
             </div>
         )}

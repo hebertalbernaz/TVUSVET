@@ -10,6 +10,7 @@ import { db } from '@/services/database';
 import { PatientCard } from '@/components/PatientCard';
 import { PatientForm } from '@/components/PatientForm';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { ProfileSelector } from '@/components/ProfileSelector';
 
 // 🔴 CORREÇÃO: Importar a imagem diretamente do SRC
 // Certifique-se de ter movido a imagem para a pasta 'frontend/src'
@@ -73,7 +74,10 @@ export default function HomePage() {
 
         <div className="flex justify-between items-center mb-8">
           <div></div>
-          <div className="flex gap-3 items-center">
+<div className="flex gap-3 items-center">
+            {/* 🟢 NOVO SELETOR AQUI */}
+            <ProfileSelector onProfileChange={() => window.location.reload()} /> 
+            
             <ThemeToggle />
             <Button
               onClick={exportBackup}

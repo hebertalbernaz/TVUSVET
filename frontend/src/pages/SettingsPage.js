@@ -12,6 +12,7 @@ import { TemplatesManager } from '@/components/TemplatesManager';
 import { ReferenceValuesManager } from '@/components/ReferenceValuesManager';
 import { LetterheadSettings } from '@/components/LetterheadSettings';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { ProfilesManager } from '@/components/ProfilesManager'; // 🟢 NOVO Nov/30/2025 Profiles
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState(null);
@@ -122,15 +123,24 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5">
+<Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-6"> {/* 🟢 Mude grid-cols-5 para 6 */}
             <TabsTrigger value="clinic">Dados da Clínica</TabsTrigger>
             <TabsTrigger value="letterhead">Timbrado</TabsTrigger>
+            <TabsTrigger value="profiles">Perfis</TabsTrigger> {/* 🟢 NOVA ABA */}
             <TabsTrigger value="backup">Backup Seguro</TabsTrigger>
             <TabsTrigger value="templates">Textos Padrão</TabsTrigger>
-            <TabsTrigger value="references">Valores de Referência</TabsTrigger>
+            <TabsTrigger value="references">Valores de Ref.</TabsTrigger>
           </TabsList>
 
+          <TabsContent value="clinic">
+            <ClinicSettings settings={settings} onSave={saveSettings} />
+          </TabsContent>
+          
+          {/* 🟢 NOVO CONTEÚDO */}
+          <TabsContent value="profiles">
+             <ProfilesManager onProfileChanged={loadAllData} />
+          </TabsContent>
           <TabsContent value="clinic">
             <ClinicSettings settings={settings} onSave={saveSettings} />
           </TabsContent>
