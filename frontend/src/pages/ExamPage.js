@@ -633,9 +633,12 @@ const exportToDocx = async () => {
                            <div className="organ-text">
                                {renderProcessedTextHTML(o.report_text, o.measurements)}
                            </div>
-                           {getReferenceValueText(o.organ_name) && (
-                               <p className="ref-value">{getReferenceValueText(o.organ_name)}</p>
-                           )}
+{getReferenceValueText(o.organ_name) && (
+    // 🟢 CORREÇÃO AQUI: Adicionado dark:text-gray-400
+    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 italic border-l-2 border-gray-300 dark:border-gray-700 pl-2">
+        {getReferenceValueText(o.organ_name)}
+    </p>
+)}
                         </div>
                      ))}
 

@@ -4,16 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Search, Settings, Plus, Download } from 'lucide-react';
-import { toast } from 'sonner';
+import { Search, Settings, Plus } from 'lucide-react'; // 🔴 REMOVIDO: Download
 import { db } from '@/services/database';
 import { PatientCard } from '@/components/PatientCard';
 import { PatientForm } from '@/components/PatientForm';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { ProfileSelector } from '@/components/ProfileSelector';
-
-// 🔴 CORREÇÃO: Importar a imagem diretamente do SRC
-// Certifique-se de ter movido a imagem para a pasta 'frontend/src'
+import { ProfileSelector } from '@/components/ProfileSelector'; // Mantém o seletor que adicionamos
 import logoImg from '../logo-tvusvet.png';
 
 export default function HomePage() {
@@ -42,30 +38,11 @@ export default function HomePage() {
     (p.owner_name && p.owner_name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const exportBackup = async () => {
-    try {
-      const backup = await db.exportBackup(); 
-      const blob = new Blob([backup], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `tvusvet_backup_${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast.success('Backup exportado com sucesso!');
-    } catch (error) {
-      console.error(error);
-      toast.error('Erro ao exportar backup');
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background" data-testid="home-page">
       <div className="container mx-auto p-6">
         
-        {/* LOGO (Usando a variável importada) */}
+        {/* LOGO */}
         <img 
           src={logoImg} 
           alt="TVUSVET Multi Laudos" 
@@ -74,19 +51,14 @@ export default function HomePage() {
 
         <div className="flex justify-between items-center mb-8">
           <div></div>
-<div className="flex gap-3 items-center">
-            {/* 🟢 NOVO SELETOR AQUI */}
-            <ProfileSelector onProfileChange={() => window.location.reload()} /> 
+          <div className="flex gap-3 items-center">
+            {/* Seletor de Perfil no Topo */}
+            <ProfileSelector onProfileChange={() => window.location.reload()} />
             
             <ThemeToggle />
-            <Button
-              onClick={exportBackup}
-              variant="outline"
-              data-testid="export-backup-button"
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Exportar Backup
-            </Button>
+            
+            {/* 🔴 REMOVIDO: Botão Exportar Backup daqui */}
+            
             <Button
               onClick={() => navigate('/settings')}
               variant="outline"

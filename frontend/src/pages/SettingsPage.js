@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,11 +17,9 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState(null);
   const [templates, setTemplates] = useState([]);
   const [referenceValues, setReferenceValues] = useState([]);
-  const [activeTab, setActiveTab] = useState('profiles'); // 🟢 Padrão agora é Perfis
+  const [activeTab, setActiveTab] = useState('profiles');
   const navigate = useNavigate();
   
-  const fileInputRef = useRef(null);
-
   useEffect(() => {
     loadAllData();
   }, []);
@@ -57,29 +55,6 @@ export default function SettingsPage() {
     }
   };
 
-  const importBackup = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const success = await db.importBackup(e.target.result);
-        if (success) {
-          toast.success('Backup importado com sucesso!');
-          await loadAllData();
-        } else {
-          toast.error('Erro ao importar: Formato inválido');
-        }
-      } catch (error) {
-        console.error(error);
-        toast.error('Erro ao ler arquivo de backup');
-      }
-    };
-    reader.readAsText(file);
-    event.target.value = ''; 
-  };
-
   if (!settings) {
     return <div>Carregando...</div>;
   }
@@ -94,21 +69,7 @@ export default function SettingsPage() {
           <div className="flex gap-2 items-center">
             <ThemeToggle />
             
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".json"
-              onChange={importBackup}
-              className="hidden"
-            />
-            
-            <Button 
-              onClick={() => fileInputRef.current.click()} 
-              variant="outline"
-            >
-              <Upload className="mr-2 h-4 w-4" />
-              Importar Backup (JSON)
-            </Button>
+            {/* 🔴 REMOVIDO: Input e Botão de Importar Backup duplicados */}
 
             <Button onClick={() => navigate('/')} variant="ghost">
               <X className="mr-2 h-4 w-4" />
@@ -118,21 +79,19 @@ export default function SettingsPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          {/* 🟢 LIMPEZA: Removidas as abas Clinic e Letterhead. Grid ajustado para 4 colunas. */}
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="profiles">Perfis (Empresas)</TabsTrigger>
-            <TabsTrigger value="backup">Backup Seguro</TabsTrigger>
+            <TabsTrigger value="backup">Backup</TabsTrigger>
             <TabsTrigger value="templates">Textos Padrão</TabsTrigger>
             <TabsTrigger value="references">Valores de Ref.</TabsTrigger>
           </TabsList>
 
           <TabsContent value="profiles">
-             {/* Quando o perfil muda, recarregamos os dados globais */}
              <ProfilesManager onProfileChanged={loadAllData} />
           </TabsContent>
 
           <TabsContent value="backup">
-            <BackupSettings settings={settings} onSave={saveSettings} onImportSuccess={loadAllData} />
+            <BackupSettings onImportSuccess={loadAllData} />
           </TabsContent>
 
           <TabsContent value="templates">
@@ -148,123 +107,120 @@ export default function SettingsPage() {
   );
 }
 
-// --- SUB-COMPONENTES ---
+// --- SUB-COMPONENTES (BackupSettings simplificado conforme solicitado antes) ---
 
-function BackupSettings({ settings, onSave, onImportSuccess }) {
-  const [useSavedPassphrase, setUseSavedPassphrase] = useState(!!settings.saved_backup_passphrase);
-  const [passphrase, setPassphrase] = useState('');
+function BackupSettings({ onImportSuccess }) {
+  const fileInputRef = React.useRef(null); // 🟢 1. Referência para o input
 
-  const handleExport = async () => {
+  const handleExportFull = async () => {
     try {
-      const { encryptBackup } = await import('@/services/cryptoBackup');
       const json = await db.exportBackup();
-      const finalPass = useSavedPassphrase && settings.saved_backup_passphrase ? settings.saved_backup_passphrase : passphrase;
-      if (!finalPass) {
-        alert('Defina uma senha para criptografar o backup ou salve uma senha nas configurações.');
-        return;
-      }
-      const enc = await encryptBackup(json, finalPass);
-      const blob = new Blob([enc], { type: 'application/octet-stream' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `tvusvet_backup_${new Date().toISOString().split('T')[0]}.tvusvet.enc`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast.success('Backup criptografado exportado!');
+      const blob = new Blob([json], { type: 'application/json' });
+      downloadFile(blob, `TVUSVET_Backup_Completo_${new Date().toISOString().split('T')[0]}.json`);
+      toast.success('Backup Completo salvo!');
     } catch (error) {
-      toast.error('Erro ao exportar backup');
+      console.error(error);
+      toast.error('Erro ao exportar');
     }
+  };
+
+  const handleExportBase = async () => {
+      try {
+          const json = await db.exportBaseData();
+          const blob = new Blob([json], { type: 'application/json' });
+          downloadFile(blob, `TVUSVET_Textos_Refs_${new Date().toISOString().split('T')[0]}.json`);
+          
+          toast.success('Arquivo gerado! Você pode salvar no Drive manualmente.');
+          // window.open removido conforme solicitado
+      } catch (error) { toast.error('Erro ao exportar bases'); }
   };
 
   const handleImport = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
+    
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const { decryptBackup } = await import('@/services/cryptoBackup');
-        const enc = e.target.result;
-        const finalPass = useSavedPassphrase && settings.saved_backup_passphrase ? settings.saved_backup_passphrase : passphrase;
-        if (!finalPass) {
-          alert('Informe a senha para importar o backup.');
-          return;
-        }
-        const json = await decryptBackup(enc, finalPass);
+        const json = e.target.result;
+        // Tenta importar
         const ok = await db.importBackup(json);
         if (ok) {
-          toast.success('Backup importado com sucesso!');
-          if (onImportSuccess) onImportSuccess();
+          toast.success('Dados importados com sucesso!');
+          if (onImportSuccess) onImportSuccess(); // Atualiza a tela
         } else {
-          toast.error('Falha ao importar backup');
+          toast.error('Arquivo inválido ou corrompido');
         }
-      } catch (err) {
-        toast.error('Senha incorreta ou arquivo inválido');
+      } catch (err) { 
+          console.error(err);
+          toast.error('Erro ao ler arquivo'); 
       }
     };
     reader.readAsText(file);
-    event.target.value = '';
+    // Limpa o input para permitir importar o mesmo arquivo 2x se precisar
+    event.target.value = ''; 
   };
 
-  const savePassphrase = async () => {
-    try {
-      await onSave({ ...settings, saved_backup_passphrase: passphrase || settings.saved_backup_passphrase });
-      setUseSavedPassphrase(true);
-      setPassphrase('');
-      toast.success('Senha salva para backups');
-    } catch (e) {
-      toast.error('Erro ao salvar senha');
-    }
-  };
-
-  const clearPassphrase = async () => {
-    try {
-      await onSave({ ...settings, saved_backup_passphrase: null });
-      setUseSavedPassphrase(false);
-      toast.success('Senha removida');
-    } catch (e) {
-      toast.error('Erro ao remover senha');
-    }
+  const downloadFile = (blob, filename) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
   };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Backup Seguro (.enc)</CardTitle>
-        <CardDescription>Exporte e importe backups criptografados com senha</CardDescription>
+        <CardTitle>Central de Backup</CardTitle>
+        <CardDescription>Gerencie seus dados com segurança.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label>Senha de Backup</Label>
-          <div className="flex gap-2">
-            <input
-              type="password"
-              value={passphrase}
-              onChange={(e) => setPassphrase(e.target.value)}
-              placeholder={useSavedPassphrase ? 'Usando senha salva' : 'Digite uma senha segura'}
-              className="border rounded px-3 py-2 flex-1"
+      <CardContent className="space-y-6">
+        
+        {/* CARD 1: Backup Completo */}
+        <div className="border p-4 rounded-lg bg-muted/30 dark:bg-slate-900/50">
+            <h3 className="font-bold mb-2 flex items-center gap-2">💾 Backup Completo (PC)</h3>
+            <p className="text-sm text-muted-foreground mb-4">Salva tudo: Pacientes, Exames, Imagens e Configurações.</p>
+            <Button onClick={handleExportFull} variant="default" className="w-full sm:w-auto">
+                <Upload className="mr-2 h-4 w-4" /> Baixar Completo (.json)
+            </Button>
+        </div>
+
+        {/* CARD 2: Backup Leve */}
+        <div className="border p-4 rounded-lg bg-blue-50/50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900">
+            <h3 className="font-bold mb-2 text-blue-700 dark:text-blue-400 flex items-center gap-2">☁️ Sincronizar Textos</h3>
+            <p className="text-sm text-blue-600/80 dark:text-blue-300/70 mb-4">
+                Salva apenas Textos Padrão e Referências. Arquivo leve para jogar no Drive/Email.
+            </p>
+            <Button onClick={handleExportBase} variant="outline" className="w-full sm:w-auto border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30">
+                <Upload className="mr-2 h-4 w-4" /> Baixar Apenas Textos
+            </Button>
+        </div>
+
+        {/* ÁREA DE IMPORTAÇÃO CORRIGIDA */}
+        <div className="pt-4 border-t">
+            {/* Input Invisível conectado à Ref */}
+            <input 
+                ref={fileInputRef}
+                type="file" 
+                accept=".json" 
+                onChange={handleImport} 
+                className="hidden" 
             />
-            <Button onClick={savePassphrase} variant="outline">Salvar Senha</Button>
-            {useSavedPassphrase && (
-              <Button onClick={clearPassphrase} variant="outline" className="text-red-600">Remover</Button>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <input type="checkbox" id="use-saved" checked={useSavedPassphrase} onChange={(e) => setUseSavedPassphrase(e.target.checked)} />
-            <Label htmlFor="use-saved">Usar senha salva</Label>
-          </div>
+            {/* Botão que clica no input via código */}
+            <Button 
+                variant="secondary" 
+                className="w-full border-dashed border-2 hover:bg-accent"
+                onClick={() => fileInputRef.current.click()} // 🟢 2. Ação direta de clique
+            >
+                <Upload className="mr-2 h-4 w-4" />
+                Clique aqui para Restaurar um Backup (Importar)
+            </Button>
         </div>
-        <div className="flex gap-2 pt-4">
-          <Button onClick={handleExport}>
-            <Upload className="mr-2 h-4 w-4" /> Exportar Backup Criptografado
-          </Button>
-          <label>
-            <input type="file" accept=".enc,.tvusvet.enc" onChange={handleImport} className="hidden" />
-            <Button as="span" variant="outline">Importar Backup Criptografado</Button>
-          </label>
-        </div>
+
       </CardContent>
     </Card>
   );
