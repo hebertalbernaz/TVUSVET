@@ -13,7 +13,7 @@ Sistema desktop _offline-first_ para gestão de pacientes e emissão de laudos d
 
 ### Pré-requisitos
 * Node.js (v18 ou superior)
-* Yarn ou NPM
+* NPM
 
 ### Passo a Passo
 
