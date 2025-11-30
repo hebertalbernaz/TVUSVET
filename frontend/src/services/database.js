@@ -60,7 +60,7 @@ class DatabaseService {
   async updateExam(id, d) { const es = await this.getExams(); const i = es.findIndex(e => e.id === id); if(i!==-1) { es[i] = {...es[i], ...d}; await set('exams', es); return es[i]; } throw new Error('Not found'); }
   async deleteExam(id) { const es = await this.getExams(); await set('exams', es.filter(e => e.id !== id)); }
 
-  // 🔴 CORREÇÃO: Salva 'originalData' junto com a imagem
+ // 🔴 CORREÇÃO: Agora salva o mimeType (importante para DICOM)
   async saveImage(eid, d) { 
       const e = await this.getExam(eid); 
       if(!e) throw new Error('Exam not found'); 
@@ -69,8 +69,9 @@ class DatabaseService {
           id: this.genId(), 
           filename: d.filename, 
           data: d.data, 
-          originalData: d.data, // Backup da original
-          organ: d.organ||null 
+          originalData: d.data,
+          organ: d.organ||null,
+          mimeType: d.mimeType || 'image/png' // <--- ADICIONAMOS ESTA LINHA
       }; 
       
       e.images = Array.isArray(e.images)?e.images:[]; 
