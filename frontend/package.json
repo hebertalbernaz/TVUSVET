@@ -1,6 +1,6 @@
 {
   "name": "tvusvet-laudos",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "main": "public/electron.js",
   "homepage": "./",
   "description": "Sistema Multi-Modal de Diagnóstico Veterinário",
