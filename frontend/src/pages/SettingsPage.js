@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'; // Adicionado useRef
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,18 +10,16 @@ import { toast } from 'sonner';
 import { db } from '@/services/database';
 import { TemplatesManager } from '@/components/TemplatesManager';
 import { ReferenceValuesManager } from '@/components/ReferenceValuesManager';
-import { LetterheadSettings } from '@/components/LetterheadSettings';
+import { ProfilesManager } from '@/components/ProfilesManager';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { ProfilesManager } from '@/components/ProfilesManager'; // 🟢 NOVO Nov/30/2025 Profiles
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState(null);
   const [templates, setTemplates] = useState([]);
   const [referenceValues, setReferenceValues] = useState([]);
-  const [activeTab, setActiveTab] = useState('clinic');
+  const [activeTab, setActiveTab] = useState('profiles'); // 🟢 Padrão agora é Perfis
   const navigate = useNavigate();
   
-  // Referência para o input de arquivo (Isso resolve o problema do clique)
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -66,12 +64,10 @@ export default function SettingsPage() {
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        // AQUI: O await garante que esperamos o banco gravar antes de prosseguir
         const success = await db.importBackup(e.target.result);
-        
         if (success) {
           toast.success('Backup importado com sucesso!');
-          await loadAllData(); // Atualiza a tela imediatamente
+          await loadAllData();
         } else {
           toast.error('Erro ao importar: Formato inválido');
         }
@@ -81,7 +77,7 @@ export default function SettingsPage() {
       }
     };
     reader.readAsText(file);
-    event.target.value = ''; // Limpa para permitir importar de novo se precisar
+    event.target.value = ''; 
   };
 
   if (!settings) {
@@ -98,7 +94,6 @@ export default function SettingsPage() {
           <div className="flex gap-2 items-center">
             <ThemeToggle />
             
-            {/* Input escondido conectado à referência */}
             <input
               ref={fileInputRef}
               type="file"
@@ -107,7 +102,6 @@ export default function SettingsPage() {
               className="hidden"
             />
             
-            {/* Botão que aciona o input via código */}
             <Button 
               onClick={() => fileInputRef.current.click()} 
               variant="outline"
@@ -123,34 +117,22 @@ export default function SettingsPage() {
           </div>
         </div>
 
-<Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-6"> {/* 🟢 Mude grid-cols-5 para 6 */}
-            <TabsTrigger value="clinic">Dados da Clínica</TabsTrigger>
-            <TabsTrigger value="letterhead">Timbrado</TabsTrigger>
-            <TabsTrigger value="profiles">Perfis</TabsTrigger> {/* 🟢 NOVA ABA */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          {/* 🟢 LIMPEZA: Removidas as abas Clinic e Letterhead. Grid ajustado para 4 colunas. */}
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="profiles">Perfis (Empresas)</TabsTrigger>
             <TabsTrigger value="backup">Backup Seguro</TabsTrigger>
             <TabsTrigger value="templates">Textos Padrão</TabsTrigger>
             <TabsTrigger value="references">Valores de Ref.</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="clinic">
-            <ClinicSettings settings={settings} onSave={saveSettings} />
-          </TabsContent>
-          
-          {/* 🟢 NOVO CONTEÚDO */}
           <TabsContent value="profiles">
+             {/* Quando o perfil muda, recarregamos os dados globais */}
              <ProfilesManager onProfileChanged={loadAllData} />
-          </TabsContent>
-          <TabsContent value="clinic">
-            <ClinicSettings settings={settings} onSave={saveSettings} />
           </TabsContent>
 
           <TabsContent value="backup">
             <BackupSettings settings={settings} onSave={saveSettings} onImportSuccess={loadAllData} />
-          </TabsContent>
-
-          <TabsContent value="letterhead">
-            <LetterheadSettings settings={settings} onSave={saveSettings} />
           </TabsContent>
 
           <TabsContent value="templates">
@@ -166,69 +148,7 @@ export default function SettingsPage() {
   );
 }
 
-// ... (O resto dos componentes ClinicSettings e BackupSettings permanecem iguais ao arquivo anterior)
-// Para economizar espaço, certifique-se de manter o restante do código que já estava lá,
-// ou copie do meu envio anterior se precisar de tudo completo.
-function ClinicSettings({ settings, onSave }) {
-  const [formData, setFormData] = useState(settings);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave(formData);
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Informações da Clínica</CardTitle>
-        <CardDescription>Configure os dados que aparecerão no cabeçalho dos laudos</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="clinic_name">Nome da Clínica</Label>
-            <Input
-              id="clinic_name"
-              value={formData.clinic_name || ''}
-              onChange={(e) => setFormData({ ...formData, clinic_name: e.target.value })}
-              data-testid="clinic-name-input"
-            />
-          </div>
-          <div>
-            <Label htmlFor="clinic_address">Endereço</Label>
-            <Input
-              id="clinic_address"
-              value={formData.clinic_address || ''}
-              onChange={(e) => setFormData({ ...formData, clinic_address: e.target.value })}
-              data-testid="clinic-address-input"
-            />
-          </div>
-          <div>
-            <Label htmlFor="veterinarian_name">Nome do Veterinário</Label>
-            <Input
-              id="veterinarian_name"
-              value={formData.veterinarian_name || ''}
-              onChange={(e) => setFormData({ ...formData, veterinarian_name: e.target.value })}
-              data-testid="vet-name-input"
-            />
-          </div>
-          <div>
-            <Label htmlFor="crmv">CRMV</Label>
-            <Input
-              id="crmv"
-              value={formData.crmv || ''}
-              onChange={(e) => setFormData({ ...formData, crmv: e.target.value })}
-              data-testid="crmv-input"
-            />
-          </div>
-          <Button type="submit" data-testid="save-clinic-settings-button">
-            Salvar Configurações
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
-  );
-}
+// --- SUB-COMPONENTES ---
 
 function BackupSettings({ settings, onSave, onImportSuccess }) {
   const [useSavedPassphrase, setUseSavedPassphrase] = useState(!!settings.saved_backup_passphrase);
