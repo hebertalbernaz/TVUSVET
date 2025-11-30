@@ -9,12 +9,12 @@ import { getAuth } from "firebase/auth";
 // CONFIGURAÇÃO PROVISÓRIA
 // Quando você criar o projeto no console do Firebase, substituirá estes dados.
 const firebaseConfig = {
-  apiKey: "API_KEY_PENDENTE",
-  authDomain: "tvusvet-v2.firebaseapp.com",
-  projectId: "tvusvet-v2",
-  storageBucket: "tvusvet-v2.appspot.com",
-  messagingSenderId: "000000000",
-  appId: "1:000000000:web:000000000"
+  apiKey: "AIzaSyB7pXsHHY05pmxVpiDdOTpjJHCMUjbq5-k",
+  authDomain: "tvus-v2.firebaseapp.com",
+  projectId: "tvus-v2",
+  storageBucket: "tvus-v2.firebasestorage.app",
+  messagingSenderId: "320970420744",
+  appId: "1:320970420744:web:f7e53a38bc41e3a04117bd"
 };
 
 // Inicializa o app apenas uma vez
