@@ -30,3 +30,34 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Cadastro de Pacientes, Exames e Configurações da Clínica.
 - Geração de Laudos em PDF e DOCX.
 - Banco de dados local (IndexedDB).
+
+# Changelog
+
+Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
+
+## [1.1.0] - Atualização "Mini-Workstation" e UI - 2024-11-30
+
+### Adicionado (Added)
+- **Suporte a DICOM (Mini-Workstation):**
+  - Visualizador nativo integrado (Cornerstone.js) com ferramentas de Zoom (Scroll), Pan (Arrastar) e Janelamento (Brilho/Contraste).
+  - Suporte a arquivos `.dcm` e arquivos sem extensão (detecção via Magic Bytes).
+  - Decodificadores (Codecs) locais para abrir imagens comprimidas (JPEG Lossless) sem internet.
+  - Extração automática de metadados (Worklist) ao importar exames.
+- **Gestão de Perfis (Multi-Empresa):**
+  - Sistema para criar, editar e trocar perfis de atendimento (Clínicas diferentes).
+  - Cada perfil salva seu próprio Logo, Assinatura, Endereço e Dados do Veterinário.
+  - Seletor rápido de perfil na Página Inicial.
+- **Backup Simplificado:**
+  - Nova opção "Sincronizar Textos" que gera um JSON leve apenas com Templates e Referências para facilitar o compartilhamento via Google Drive/Email.
+- **Galeria Externa:** Nova página de galeria (`/gallery`) com suporte a visualização DICOM em tela cheia.
+
+### Alterado (Changed)
+- **Interface (UI/UX):**
+  - Nova identidade visual **"Rose & Lilac"** (Tons de Rosa/Lilás e Cinza).
+  - Modo Escuro (Dark Mode) totalmente refatorado para melhor contraste e conforto visual.
+  - Componentes padronizados (Botões, Cards, Inputs) usando Shadcn/UI.
+- **Relatórios (Output):**
+  - **Títulos Dinâmicos:** O sistema agora escreve "Relatório Ecocardiográfico", "Radiográfico", etc., automaticamente baseado no tipo de exame.
+  - **Paridade DOCX/PDF:** O gerador de Word foi reescrito para ficar visualmente idêntico ao PDF (Tabelas de cabeçalho, caixas de paciente, assinatura no rodapé).
+  - **Impressão Inteligente:** O PDF agora ignora arquivos DICOM brutos (evitando imagens quebradas) e imprime apenas imagens estáticas (JPG/PNG).
+- **Config

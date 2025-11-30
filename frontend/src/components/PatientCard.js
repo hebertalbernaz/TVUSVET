@@ -48,6 +48,20 @@ export function PatientCard({ patient, onUpdate }) {
     } catch (e) { toast.error('Erro ao criar'); }
   };
 
+  // 🔴 NOVA FUNÇÃO: Excluir Paciente
+  const handleDeletePatient = async () => {
+      const confirm = window.confirm(`ATENÇÃO: Deseja excluir o paciente "${patient.name}"?\n\nIsso apagará permanentemente o histórico e TODOS os exames dele.`);
+      if (!confirm) return;
+      
+      try {
+          await db.deletePatient(patient.id);
+          toast.success('Paciente excluído com sucesso');
+          onUpdate(); // Atualiza a lista na Home
+      } catch (e) {
+          toast.error('Erro ao excluir paciente');
+      }
+  };
+
   const handleDeleteExam = async () => {
     if (!examToDelete) return;
     try {
@@ -59,7 +73,6 @@ export function PatientCard({ patient, onUpdate }) {
     } catch (e) { toast.error('Erro ao excluir'); }
   };
 
-  // Ícone dinâmico com cores do tema
   const SpeciesIcon = patient.species === 'cat' ? Cat : (patient.species === 'dog' ? Dog : HelpCircle);
   
   const iconClass = patient.species === 'dog' 
@@ -83,14 +96,28 @@ export function PatientCard({ patient, onUpdate }) {
                     </CardDescription>
                 </div>
             </div>
-            <Button 
-                onClick={() => setShowEditDialog(true)} 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-            >
-                <Edit className="h-4 w-4" />
-            </Button>
+            
+            {/* 🔴 BOTÕES DE AÇÃO (EDITAR E EXCLUIR) */}
+            <div className="flex gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button 
+                    onClick={() => setShowEditDialog(true)} 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors"
+                    title="Editar Paciente"
+                >
+                    <Edit className="h-4 w-4" />
+                </Button>
+                <Button 
+                    onClick={handleDeletePatient} 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    title="Excluir Paciente"
+                >
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </div>
         </div>
       </CardHeader>
       
@@ -123,7 +150,6 @@ export function PatientCard({ patient, onUpdate }) {
           </Button>
         </div>
 
-        {/* MODAL DE LISTA DE EXAMES */}
         <Dialog open={showExams} onOpenChange={setShowExams}>
           <DialogContent className="max-w-3xl">
             <DialogHeader>
@@ -169,7 +195,6 @@ export function PatientCard({ patient, onUpdate }) {
           </DialogContent>
         </Dialog>
 
-        {/* DIALOGOS DE EDIÇÃO E EXCLUSÃO MANTIDOS */}
         <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
           <DialogContent>
             <DialogHeader><DialogTitle>Editar Paciente</DialogTitle></DialogHeader>
