@@ -21,6 +21,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { ImageEditor } from '@/components/ImageEditor';
 import '@/print.css';
+import { parseDicomTags } from '@/services/dicomService';
+import { DicomViewer } from '@/components/DicomViewer';
+import { FileDigit } from 'lucide-react'; // Ícone para representar o arquivo DICOM na lista
+import { cn, dataURItoBlob } from '@/lib/utils'; // 🟢 DICOM
 
 export default function ExamPage() {
   const { examId } = useParams();
@@ -120,22 +124,43 @@ await db.updateExam(examId, {
     } catch (error) { toast.error('Erro ao salvar'); }
   };
 
-  const handleImageUpload = async (event) => {
+const handleImageUpload = async (event) => {
     const files = event.target.files;
     if (!files.length) return;
     setUploading(true);
+    
     try {
       for (let file of files) {
+        const isDicom = file.name.toLowerCase().endsWith('.dcm');
+        
+        // 1. Se for DICOM, tenta extrair dados para Worklist
+        if (isDicom) {
+            const tags = await parseDicomTags(file);
+            console.log("Metadados:", tags);
+            // Aqui você pode preencher dados automaticamente se quiser:
+            // if (!patient.name && tags.PatientName) { ... }
+        }
+
+        // 2. Salva no Banco
         await new Promise((resolve) => {
           const reader = new FileReader();
           reader.onload = async (e) => {
-             const imgData = { filename: file.name, data: e.target.result, originalData: e.target.result };
+             const base64 = e.target.result;
+             
+             const imgData = { 
+                 filename: file.name, 
+                 data: base64, // Salva o conteúdo (para DICOM é um base64 gigante)
+                 originalData: base64,
+                 mimeType: isDicom ? 'application/dicom' : file.type 
+             };
              await db.saveImage(examId, imgData);
              resolve();
           };
           reader.readAsDataURL(file);
         });
       }
+      
+      // Atualiza lista
       const updated = await db.getExam(examId);
       setExamImages(updated.images || []);
     } finally { setUploading(false); }
@@ -387,14 +412,29 @@ await db.updateExam(examId, {
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       
-      {editingImage && (
-          <ImageEditor 
+{editingImage && (
+    (editingImage.mimeType === 'application/dicom' || editingImage.filename.endsWith('.dcm')) ? (
+        <Dialog open={!!editingImage} onOpenChange={() => setEditingImage(null)}>
+            <DialogContent className="max-w-[95vw] h-[90vh] p-0 bg-black border-none">
+                {/* Aqui carregamos a Workstation DICOM */}
+                <div className="w-full h-full relative">
+                    <button onClick={() => setEditingImage(null)} className="absolute top-4 right-4 z-50 text-white bg-red-600 p-2 rounded">
+                        <X className="h-4 w-4" />
+                    </button>
+                    {/* Convertemos o Base64 de volta para Blob para o Cornerstone ler */}
+                    <DicomViewer imageBlob={dataURItoBlob(editingImage.data)} />
+                </div>
+            </DialogContent>
+        </Dialog>
+    ) : (
+        <ImageEditor 
             isOpen={!!editingImage}
             imageUrl={editingImage.data}
             onClose={() => setEditingImage(null)}
             onSave={handleSaveEditedImage}
-          />
-      )}
+        />
+    )
+)}
 
       <div className="h-14 border-b flex items-center justify-between px-4 bg-card shrink-0 no-print">
         <div className="flex items-center gap-3">
@@ -451,18 +491,26 @@ await db.updateExam(examId, {
                   <ScrollArea className="flex-1 p-2">
                      <div className="space-y-2">
                        {examImages.map(img => (
-                         <div key={img.id} className="relative group aspect-video bg-black/5 rounded overflow-hidden border cursor-pointer" onClick={() => setEditingImage(img)}>
-                           <img src={img.data} className="w-full h-full object-cover" alt="" />
-                           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
-                                <Edit className="h-6 w-6" />
-                           </div>
-                           <div className="absolute top-1 right-1 flex gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-                               {img.originalData && (
-                                   <button onClick={(e) => { e.stopPropagation(); handleResetImage(img.id); }} className="bg-yellow-500 text-white p-1 rounded hover:bg-yellow-600" title="Restaurar Original"><RotateCcw className="h-3 w-3" /></button>
-                               )}
-                               <button onClick={(e) => { e.stopPropagation(); handleDeleteImage(img.id); }} className="bg-red-500 text-white p-1 rounded hover:bg-red-600"><Trash2 className="h-3 w-3" /></button>
-                           </div>
-                         </div>
+              <div key={img.id} className="relative group aspect-video bg-black/5 rounded overflow-hidden border cursor-pointer" onClick={() => setEditingImage(img)}>
+    {/* SE FOR DICOM, MOSTRA ÍCONE. SE NÃO, MOSTRA IMAGEM */}
+    {img.mimeType === 'application/dicom' || img.filename.endsWith('.dcm') ? (
+        <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900 text-gray-400">
+            <FileDigit className="h-10 w-10 mb-2" />
+            <span className="text-[10px] uppercase font-bold">DICOM</span>
+        </div>
+    ) : (
+        <img src={img.data} className="w-full h-full object-cover" alt="" />
+    )}
+    
+    {/* ... (Mantenha os botões de editar/excluir que já existiam aqui) ... */}
+    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
+        <Edit className="h-6 w-6" />
+    </div>
+    <div className="absolute top-1 right-1 flex gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+        {/* ... botões de restaurar e lixeira ... */}
+        <button onClick={(e) => { e.stopPropagation(); handleDeleteImage(img.id); }} className="bg-red-500 text-white p-1 rounded hover:bg-red-600"><Trash2 className="h-3 w-3" /></button>
+    </div>
+</div>
                        ))}
                      </div>
                   </ScrollArea>
