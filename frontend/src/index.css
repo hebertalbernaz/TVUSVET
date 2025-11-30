@@ -1,92 +1,91 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Estilos Globais Básicos */
-body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
-        "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans",
-        "Helvetica Neue", sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-}
-
-code {
-    font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
-}
-
-/* Configuração de Cores do Tema (Sua Identidade Visual) */
 @layer base {
   :root {
-    --background: 0 0% 96%; /* Cinza claro (Fundo do logo) */
-    --foreground: 240 10% 3.9%;
-    
+    /* MODO CLARO - Baseado em Cinza Claro e Rosa/Lilás */
+    --background: 0 0% 100%;       /* Branco Puro */
+    --foreground: 260 10% 20%;     /* Cinza Escuro quase Roxo */
+
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    
+    --card-foreground: 260 10% 20%;
+ 
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    
-    /* Suas Cores Personalizadas */
-    --primary: 330 80% 55%; /* Rosa do Logo */
-    --primary-foreground: 0 0% 100%;
-    
-    --secondary: 250 60% 96%; /* Lavanda Claro */
-    --secondary-foreground: 240 10% 3.9%;
-    
-    --muted: 240 5% 94%;
-    --muted-foreground: 240 4% 46%;
-    
-    --accent: 250 60% 93%; /* Lavanda Escuro */
-    --accent-foreground: 240 10% 3.9%;
-    
+    --popover-foreground: 260 10% 20%;
+ 
+    /* PRIMARY: Rosa Profundo (Rose-600) */
+    --primary: 340 75% 55%;
+    --primary-foreground: 355 100% 98%;
+ 
+    /* SECONDARY: Lilás Suave (Violet-100/200) */
+    --secondary: 260 50% 96%;
+    --secondary-foreground: 260 40% 40%;
+ 
+    /* MUTED: Cinza Neutro com toque Roxo */
+    --muted: 260 10% 96%;
+    --muted-foreground: 260 5% 45%;
+ 
+    --accent: 260 50% 96%;
+    --accent-foreground: 260 40% 40%;
+ 
     --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
-    
-    --border: 240 6% 88%;
-    --input: 240 6% 88%;
-    --ring: 330 80% 55%; /* Anel de foco Rosa */
-    
-    --radius: 0.5rem;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 260 10% 90%;
+    --input: 260 10% 90%;
+    --ring: 340 75% 55%; /* Anel de foco Rosa */
+ 
+    --radius: 0.75rem; /* Bordas mais arredondadas e modernas */
   }
  
   .dark {
-    --background: 0 0% 8%; /* Fundo Escuro */
-    --foreground: 40 30% 90%; /* Texto Creme */
-    
-    --card: 0 0% 10%;
-    --card-foreground: 40 30% 90%;
-    
-    --popover: 0 0% 10%;
-    --popover-foreground: 40 30% 90%;
-    
-    --primary: 330 80% 65%; /* Rosa mais claro para modo escuro */
-    --primary-foreground: 0 0% 100%;
-    
-    --secondary: 250 20% 20%;
-    --secondary-foreground: 40 30% 90%;
-    
-    --muted: 0 0% 15%;
-    --muted-foreground: 240 4% 56%;
-    
-    --accent: 250 20% 25%;
-    --accent-foreground: 40 30% 90%;
-    
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
-    
-    --border: 0 0% 18%;
-    --input: 0 0% 18%;
-    --ring: 330 80% 65%;
+    /* MODO ESCURO - Baseado em Slate/Zinc Profundo */
+    --background: 260 15% 10%;     /* Roxo Quase Preto */
+    --foreground: 260 10% 95%;     /* Branco Suave */
+ 
+    --card: 260 15% 13%;           /* Um pouco mais claro que o fundo */
+    --card-foreground: 260 10% 95%;
+ 
+    --popover: 260 15% 13%;
+    --popover-foreground: 260 10% 95%;
+ 
+    /* PRIMARY: Rosa Vibrante para Contraste */
+    --primary: 340 75% 60%;
+    --primary-foreground: 355 100% 98%;
+ 
+    /* SECONDARY: Roxo Profundo */
+    --secondary: 260 30% 20%;
+    --secondary-foreground: 260 10% 90%;
+ 
+    --muted: 260 20% 18%;
+    --muted-foreground: 260 10% 65%;
+ 
+    --accent: 260 30% 20%;
+    --accent-foreground: 260 10% 90%;
+ 
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 210 40% 98%;
+ 
+    --border: 260 20% 20%;
+    --input: 260 20% 20%;
+    --ring: 340 75% 60%;
   }
 }
-
+ 
 @layer base {
   * {
     @apply border-border;
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Space Grotesk', sans-serif; /* Fonte moderna aplicada */
   }
+}
+
+/* Regras de Impressão (Mantidas) */
+@media print {
+  #printable-report { display: none; }
 }

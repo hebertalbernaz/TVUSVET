@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Upload, Save, Download, X, Check, ArrowLeft, Trash2, Plus, Printer, Bold, Italic, Edit, RotateCcw, History, Images, FileDigit } from 'lucide-react';
+import { Upload, Save, Download, X, Check, ArrowLeft, Trash2, Plus, Printer, Bold, Italic, Edit, RotateCcw, History, Images, FileDigit, ChevronRight, Stethoscope } from 'lucide-react';
 import { toast } from 'sonner';
 import { db } from '@/services/database';
 import { 
@@ -37,28 +37,22 @@ export default function ExamPage() {
   
   const [examWeight, setExamWeight] = useState('');
   const [examDateTime, setExamDateTime] = useState('');
-  const [referringVet, setReferringVet] = useState(''); // Estado do Vet Solicitante
+  const [referringVet, setReferringVet] = useState('');
   const [examImages, setExamImages] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [reportLanguage, setReportLanguage] = useState('pt');
   const navigate = useNavigate();
   const [editingImage, setEditingImage] = useState(null);
-// Lógica para definir o título do relatório dinamicamente
+
+  // Lógica para definir o título do relatório dinamicamente
   const getReportTitle = () => {
       const type = exam?.exam_type || 'ultrasound_abd';
-      
       switch (type) {
-          case 'echocardiogram':
-              return 'RELATÓRIO ECOCARDIOGRÁFICO';
-          case 'ecg':
-              return 'RELATÓRIO ELETROCARDIOGRÁFICO';
-          case 'radiography':
-              return 'RELATÓRIO RADIOGRÁFICO';
-          case 'tomography':
-              return 'RELATÓRIO TOMOGRÁFICO';
-          case 'ultrasound_abd':
-          default:
-              return 'RELATÓRIO ULTRASSONOGRÁFICO';
+          case 'echocardiogram': return 'RELATÓRIO ECOCARDIOGRÁFICO';
+          case 'ecg': return 'RELATÓRIO ELETROCARDIOGRÁFICO';
+          case 'radiography': return 'RELATÓRIO RADIOGRÁFICO';
+          case 'tomography': return 'RELATÓRIO TOMOGRÁFICO';
+          case 'ultrasound_abd': default: return 'RELATÓRIO ULTRASSONOGRÁFICO';
       }
   };
 
@@ -76,7 +70,7 @@ export default function ExamPage() {
       if (!examRes) return navigate('/');
       setExam(examRes);
       setExamWeight(examRes.exam_weight || '');
-      setReferringVet(examRes.referring_vet || ''); // Carrega Vet Solicitante
+      setReferringVet(examRes.referring_vet || '');
       
       let initialDate = new Date();
       if (examRes.exam_date) {
@@ -140,14 +134,10 @@ export default function ExamPage() {
     const files = event.target.files;
     if (!files.length) return;
     setUploading(true);
-    
     try {
       for (let file of files) {
-        // 1. DETECÇÃO ROBUSTA DE DICOM (Por extensão OU Conteúdo)
         let isDicom = file.name.toLowerCase().endsWith('.dcm');
-        
         if (!isDicom) {
-             // Lê os primeiros bytes para ver se tem a assinatura "DICM"
              await new Promise((resolve) => {
                  const slice = file.slice(0, 132);
                  const reader = new FileReader();
@@ -155,44 +145,32 @@ export default function ExamPage() {
                      try {
                          const view = new DataView(e.target.result);
                          if (view.byteLength >= 132) {
-                             const magic = String.fromCharCode(
-                                 view.getUint8(128), view.getUint8(129), view.getUint8(130), view.getUint8(131)
-                             );
+                             const magic = String.fromCharCode(view.getUint8(128), view.getUint8(129), view.getUint8(130), view.getUint8(131));
                              if (magic === 'DICM') isDicom = true;
                          }
-                     } catch(err) { console.log("Não é DICOM"); }
+                     } catch(err) { }
                      resolve();
                  };
                  reader.readAsArrayBuffer(slice);
              });
         }
-
-        // 2. Extrai Tags se for DICOM
         if (isDicom) {
             try {
                 const tags = await parseDicomTags(file);
-                if (!patient.name && tags.PatientName) toast.info(`Paciente detectado: ${tags.PatientName}`);
-            } catch (e) { console.error(e); }
+                if (!patient.name && tags.PatientName) toast.info(`Paciente: ${tags.PatientName}`);
+            } catch (e) { }
         }
-
-        // 3. Salva no Banco com o mimeType correto
         await new Promise((resolve) => {
           const reader = new FileReader();
           reader.onload = async (e) => {
              const base64 = e.target.result;
-             const imgData = { 
-                 filename: file.name, 
-                 data: base64, 
-                 originalData: base64,
-                 mimeType: isDicom ? 'application/dicom' : (file.type || 'application/octet-stream')
-             };
+             const imgData = { filename: file.name, data: base64, originalData: base64, mimeType: isDicom ? 'application/dicom' : (file.type || 'application/octet-stream') };
              await db.saveImage(examId, imgData);
              resolve();
           };
           reader.readAsDataURL(file);
         });
       }
-      
       const updated = await db.getExam(examId);
       setExamImages(updated.images || []);
     } finally { setUploading(false); }
@@ -241,17 +219,12 @@ export default function ExamPage() {
   };
 
   const calculateAge = (patient) => {
-    if (patient.birth_year) {
-        const currentYear = new Date().getFullYear();
-        const age = currentYear - patient.birth_year;
-        return age <= 0 ? '< 1 ano' : `${age} anos`;
-    }
+    if (patient.birth_year) return (new Date().getFullYear() - patient.birth_year) <= 0 ? '< 1 ano' : `${new Date().getFullYear() - patient.birth_year} anos`;
     if (patient.birth_date) {
-        const today = new Date();
-        const birth = new Date(patient.birth_date);
+        const today = new Date(); const birth = new Date(patient.birth_date);
         let age = today.getFullYear() - birth.getFullYear();
         const m = today.getMonth() - birth.getMonth();
-        if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) { age--; }
+        if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
         return `${age} anos`;
     }
     return 'Não informada';
@@ -275,17 +248,14 @@ export default function ExamPage() {
   const processTextPlaceholders = (text, measurementsObj) => {
     if (!text) return '';
     let processed = text;
-    const m1 = measurementsObj?.m1;
-    const m2 = measurementsObj?.m2;
-    const m3 = measurementsObj?.m3;
+    const m1 = measurementsObj?.m1; const m2 = measurementsObj?.m2; const m3 = measurementsObj?.m3;
     processed = processed.replace(/\{(MEDIDA1|medida1|M1)\}/g, m1 ? `${m1.value} ${m1.unit}` : '___');
     processed = processed.replace(/\{(MEDIDA2|medida2|M2)\}/g, m2 ? `${m2.value} ${m2.unit}` : '___');
     processed = processed.replace(/\{(MEDIDA3|medida3|M3)\}/g, m3 ? `${m3.value} ${m3.unit}` : '___');
     const sortedM = [m1, m2, m3].filter(Boolean);
     let genericIndex = 0;
     processed = processed.replace(/\{(MEDIDA|medida)\}/g, () => {
-        const m = sortedM[genericIndex++];
-        return m ? `${m.value} ${m.unit}` : '{MEDIDA}';
+        const m = sortedM[genericIndex++]; return m ? `${m.value} ${m.unit}` : '{MEDIDA}';
     });
     return processed;
   };
@@ -303,8 +273,7 @@ export default function ExamPage() {
   const dataURLToUint8Array = (dataURL) => {
     const base64 = dataURL.split(',')[1];
     const binary = atob(base64);
-    const len = binary.length;
-    const bytes = new Uint8Array(len);
+    const len = binary.length; const bytes = new Uint8Array(len);
     for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
     return bytes;
   };
@@ -312,10 +281,7 @@ export default function ExamPage() {
   const getImageSize = (base64, targetWidth = 250) => {
     return new Promise((resolve) => {
       const img = new Image();
-      img.onload = () => {
-        const ratio = img.height / img.width;
-        resolve({ width: targetWidth, height: targetWidth * ratio });
-      };
+      img.onload = () => { const ratio = img.height / img.width; resolve({ width: targetWidth, height: targetWidth * ratio }); };
       img.onerror = () => resolve({ width: targetWidth, height: targetWidth * 0.75 });
       img.src = base64;
     });
@@ -331,21 +297,14 @@ export default function ExamPage() {
     }).filter(Boolean);
   };
 
-  // Função auxiliar para linhas do cabeçalho DOCX
-  const createHeaderRow = (text, isBold = false, size = 20) => {
-      return new Paragraph({
-          alignment: AlignmentType.RIGHT,
-          children: [new TextRun({ text: text || '', bold: isBold, size: size, font: "Arial" })],
-          spacing: { after: 0, line: 240 }
-      });
-  };
+  const createHeaderRow = (text, isBold = false) => new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: text || '', bold: isBold, size: 20, font: "Arial" })] });
 
-const exportToDocx = async () => {
+  const exportToDocx = async () => {
     try {
       await saveExam();
       const currentSettings = await db.getSettings();
       const t = (txt) => translate(txt, reportLanguage);
-      const dynamicTitle = getReportTitle(); // 🟢 Título Dinâmico
+      const dynamicTitle = getReportTitle();
       
       const headerRows = [];
       let logoCell = new TableCell({ children: [], borders: { top: {style: BorderStyle.NONE}, bottom: {style: BorderStyle.NONE}, left: {style: BorderStyle.NONE}, right: {style: BorderStyle.NONE} } });
@@ -359,9 +318,6 @@ const exportToDocx = async () => {
               children: [new Paragraph({ children: [new ImageRun({ data: imgData, transformation: { width: dims.width, height: dims.height } })] })]
           });
       }
-
-      // Função auxiliar local para criar linhas
-      const createHeaderRow = (text, isBold = false) => new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: text || '', bold: isBold, size: 20, font: "Arial" })] });
 
       const infoCell = new TableCell({
           width: { size: 60, type: WidthType.PERCENTAGE },
@@ -403,7 +359,7 @@ const exportToDocx = async () => {
 
       const docChildren = [
           headerTable, new Paragraph({ text: " " }), patientBox, new Paragraph({ text: " " }),
-          new Paragraph({ text: dynamicTitle, heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER, spacing: { after: 300 } }), // 🟢 Título aqui
+          new Paragraph({ text: dynamicTitle, heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER, spacing: { after: 300 } }),
       ];
 
       organsData.forEach(data => {
@@ -422,9 +378,6 @@ const exportToDocx = async () => {
       if (validImages.length > 0) {
         docChildren.push(new Paragraph({ children: [new PageBreak()] }));
         docChildren.push(new Paragraph({ text: t('IMAGENS'), heading: HeadingLevel.HEADING_2, alignment: AlignmentType.CENTER }));
-        // ... (Lógica de grid de imagens mantém-se igual, omitida aqui para brevidade se não mudou)
-        // Se precisar do bloco de imagens completo me avise, mas o foco era o título.
-        // Vou incluir o bloco de imagens simplificado para garantir:
         const rows = [];
         for (let i = 0; i < validImages.length; i += 2) {
             const cells = [];
@@ -439,7 +392,6 @@ const exportToDocx = async () => {
         docChildren.push(new Table({ rows, width: { size: 100, type: WidthType.PERCENTAGE }, borders: { top: {style: BorderStyle.NONE}, bottom: {style: BorderStyle.NONE}, left: {style: BorderStyle.NONE}, right: {style: BorderStyle.NONE}, insideHorizontal: {style: BorderStyle.NONE}, insideVertical: {style: BorderStyle.NONE} } }));
       }
 
-      // ... (Assinatura mantém-se igual) ...
       if (currentSettings.signature_path?.startsWith('data:image')) {
           const sigData = dataURLToUint8Array(currentSettings.signature_path);
           const sigDims = await getImageSize(currentSettings.signature_path, 150);
@@ -455,7 +407,7 @@ const exportToDocx = async () => {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Relatorio_${patient.name}.docx`; // 🟢 Nome do arquivo ajustado
+      link.download = `Relatorio_${patient.name}.docx`;
       link.click();
       toast.success('Gerado!');
     } catch (e) { console.error(e); toast.error('Erro ao gerar DOCX.'); }
@@ -466,7 +418,7 @@ const exportToDocx = async () => {
       setTimeout(() => window.print(), 100);
   };
 
-  if (!exam || !patient) return <div className="flex h-screen items-center justify-center">Carregando...</div>;
+  if (!exam || !patient) return <div className="flex h-screen items-center justify-center bg-background text-foreground animate-pulse">Carregando...</div>;
 
   const currentOrgan = organsData[currentOrganIndex];
   const organTemplates = templates.filter(t => 
@@ -477,11 +429,15 @@ const exportToDocx = async () => {
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       
+      {/* MODAL DICOM / IMAGEM */}
       {editingImage && (
           (editingImage.mimeType === 'application/dicom' || editingImage.filename.toLowerCase().endsWith('.dcm')) ? (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
-                <div className="w-full h-[90vh] bg-black border border-gray-700 rounded relative flex flex-col">
-                     <button onClick={() => setEditingImage(null)} className="absolute top-2 right-2 text-white bg-red-600 p-2 rounded z-50"><X className="h-4 w-4"/></button>
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 animate-in fade-in">
+                <div className="w-full h-[90vh] bg-black border border-gray-700 rounded relative flex flex-col shadow-2xl">
+                     <div className="absolute top-4 right-4 z-50 flex gap-2">
+                        <span className="text-white/50 text-xs px-2 py-1 bg-black/50 rounded">Visualizador DICOM</span>
+                        <button onClick={() => setEditingImage(null)} className="text-white hover:bg-red-600 p-1 rounded transition-colors"><X className="h-5 w-5"/></button>
+                     </div>
                      <DicomViewer imageBlob={dataURItoBlob(editingImage.data)} />
                 </div>
             </div>
@@ -495,96 +451,135 @@ const exportToDocx = async () => {
           )
       )}
 
-      <div className="h-14 border-b flex items-center justify-between px-4 bg-card shrink-0 no-print">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/')}><ArrowLeft className="h-5 w-5"/></Button>
-          <div>
-            <h1 className="font-bold text-lg leading-tight">{patient.name}</h1>
-            <div className="text-xs text-muted-foreground flex gap-2 items-center">
-               <span>{patient.species}</span><span>•</span>
-               <Input className="h-6 w-16 text-xs px-1" placeholder="Peso" value={examWeight} onChange={e => setExamWeight(e.target.value)} /> kg
-               <span className="ml-2 border-l pl-2">Data:</span>
-               <Input type="datetime-local" className="h-6 w-auto min-w-[220px] text-xs px-1" value={examDateTime} onChange={e => setExamDateTime(e.target.value)} />
-               <span className="ml-2 border-l pl-2">Vet. Solicitante:</span>
-               <Input className="h-6 w-40 text-xs px-1" placeholder="Nome do Colega" value={referringVet} onChange={e => setReferringVet(e.target.value)} />
+      {/* CABEÇALHO DO EXAME */}
+      <div className="h-16 border-b flex items-center justify-between px-6 bg-card shrink-0 no-print shadow-sm z-20">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors rounded-full">
+              <ArrowLeft className="h-5 w-5"/>
+          </Button>
+          
+          <div className="flex flex-col">
+            <h1 className="font-bold text-lg leading-none flex items-center gap-2">
+                {patient.name}
+                <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">{getExamTypeName(exam.exam_type)}</Badge>
+            </h1>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+               <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-primary/50"></span> {patient.species === 'dog' ? 'Cão' : 'Gato'}</span>
+               
+               {/* Inputs de Dados do Exame - Estilo Clean */}
+               <div className="flex items-center gap-1 bg-muted/30 px-2 py-0.5 rounded border border-border/50">
+                   <span>Peso:</span>
+                   <input className="bg-transparent w-10 text-center font-medium focus:outline-none text-foreground" placeholder="0.0" value={examWeight} onChange={e => setExamWeight(e.target.value)} /> 
+                   <span>kg</span>
+               </div>
+
+               <div className="flex items-center gap-1 bg-muted/30 px-2 py-0.5 rounded border border-border/50">
+                   <input type="datetime-local" className="bg-transparent w-32 font-medium focus:outline-none text-foreground text-[10px]" value={examDateTime} onChange={e => setExamDateTime(e.target.value)} />
+               </div>
+
+               <div className="flex items-center gap-1 bg-muted/30 px-2 py-0.5 rounded border border-border/50">
+                   <span>Solic.:</span>
+                   <input className="bg-transparent w-24 font-medium focus:outline-none text-foreground placeholder:text-muted-foreground/50" placeholder="Dr. Nome" value={referringVet} onChange={e => setReferringVet(e.target.value)} />
+               </div>
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
-           <Button variant="secondary" size="sm" onClick={handleOpenHistory}><History className="h-4 w-4 mr-2"/> Histórico</Button>
-           <Button variant="secondary" size="sm" onClick={handleOpenGallery}><Images className="h-4 w-4 mr-2"/> Galeria</Button>
+
+        <div className="flex gap-2 items-center">
+           <div className="hidden md:flex gap-1 mr-2">
+               <Button variant="ghost" size="sm" onClick={handleOpenHistory} className="text-muted-foreground hover:text-primary"><History className="h-4 w-4 mr-1"/> Histórico</Button>
+               <Button variant="ghost" size="sm" onClick={handleOpenGallery} className="text-muted-foreground hover:text-primary"><Images className="h-4 w-4 mr-1"/> Galeria</Button>
+           </div>
+           
+           <div className="h-6 w-px bg-border mx-1"></div>
+
            <Select value={reportLanguage} onValueChange={setReportLanguage}>
-            <SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-28 h-9 text-xs bg-muted/20 border-muted"><SelectValue /></SelectTrigger>
             <SelectContent>
               {getAvailableLanguages().map(l => <SelectItem key={l.code} value={l.code}>{l.flag} {l.name}</SelectItem>)}
             </SelectContent>
           </Select>
-           <Button variant="outline" size="sm" onClick={handlePrintPdf}><Printer className="h-4 w-4 mr-2"/> PDF</Button>
-           <Button variant="outline" size="sm" onClick={saveExam}><Save className="h-4 w-4 mr-2"/> Salvar</Button>
-           <Button size="sm" onClick={exportToDocx}><Download className="h-4 w-4 mr-2"/> DOCX</Button>
+           
+           <Button variant="outline" size="sm" onClick={handlePrintPdf} className="h-9 gap-1 text-muted-foreground hover:text-foreground"><Printer className="h-4 w-4"/> PDF</Button>
+           <Button variant="outline" size="sm" onClick={saveExam} className="h-9 gap-1 text-muted-foreground hover:text-foreground"><Save className="h-4 w-4"/> Salvar</Button>
+           <Button size="sm" onClick={exportToDocx} className="h-9 gap-1 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"><Download className="h-4 w-4"/> DOCX</Button>
         </div>
       </div>
 
+      {/* ÁREA DE TRABALHO (PAINÉIS) */}
       <div className="flex-1 overflow-hidden no-print">
          <ResizablePanelGroup direction="horizontal">
-            <ResizablePanel defaultSize={20} minSize={15} maxSize={50} className="border-r bg-muted/10">
-                <div className="h-full flex flex-col">
-                  <div className="p-2 border-b flex justify-between items-center">
-                     <span className="text-xs font-bold text-muted-foreground">IMAGENS ({examImages.length})</span>
-                     <label htmlFor="img-up" className="cursor-pointer bg-primary text-white p-1 rounded hover:opacity-80">
-                        <Plus className="h-3 w-3" />
+            
+            {/* PAINEL ESQUERDO: IMAGENS */}
+            <ResizablePanel defaultSize={20} minSize={15} maxSize={40} className="border-r bg-muted/10 dark:bg-muted/5 flex flex-col">
+                <div className="p-3 border-b flex justify-between items-center bg-card/50">
+                     <span className="text-xs font-bold text-muted-foreground flex items-center gap-2"><Images className="h-3 w-3"/> IMAGENS ({examImages.length})</span>
+                     <label htmlFor="img-up" className="cursor-pointer bg-primary/10 hover:bg-primary/20 text-primary p-1.5 rounded transition-colors">
+                        <Plus className="h-4 w-4" />
                         <input id="img-up" type="file" multiple accept="image/*,.dcm,application/dicom,*" className="hidden" onChange={handleImageUpload} disabled={uploading}/>
                      </label>
-                  </div>
-                  <ScrollArea className="flex-1 p-2">
-                     <div className="space-y-2">
+                </div>
+                <ScrollArea className="flex-1 p-3">
+                     <div className="space-y-3">
                        {examImages.map(img => (
-                         <div key={img.id} className="relative group aspect-video bg-black/5 rounded overflow-hidden border cursor-pointer" onClick={() => setEditingImage(img)}>
+                         <div key={img.id} className="relative group aspect-video bg-black/5 dark:bg-white/5 rounded-lg overflow-hidden border border-border shadow-sm cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setEditingImage(img)}>
                            {(img.mimeType === 'application/dicom' || img.filename.toLowerCase().endsWith('.dcm')) ? (
                                 <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-400">
-                                    <FileDigit className="h-8 w-8 mb-1" />
-                                    <span className="text-[10px] font-bold">DICOM</span>
+                                    <FileDigit className="h-8 w-8 mb-1 opacity-80" />
+                                    <span className="text-[10px] font-bold tracking-wider">DICOM</span>
                                 </div>
                            ) : (
                                 <img src={img.data} className="w-full h-full object-cover" alt="" />
                            )}
-                           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity"><Edit className="h-6 w-6" /></div>
+                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity backdrop-blur-[1px]"><Edit className="h-6 w-6" /></div>
                            <div className="absolute top-1 right-1 flex gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-                               <button onClick={(e) => { e.stopPropagation(); handleDeleteImage(img.id); }} className="bg-red-500 text-white p-1 rounded hover:bg-red-600"><Trash2 className="h-3 w-3" /></button>
+                               <button onClick={(e) => { e.stopPropagation(); handleDeleteImage(img.id); }} className="bg-destructive/90 text-white p-1.5 rounded hover:bg-destructive shadow-sm"><Trash2 className="h-3 w-3" /></button>
                            </div>
                          </div>
                        ))}
                      </div>
-                  </ScrollArea>
-                </div>
+                </ScrollArea>
             </ResizablePanel>
-            <ResizableHandle withHandle className="bg-border w-2 hover:bg-primary/20 transition-colors" />
+            
+            <ResizableHandle withHandle className="bg-border w-1 hover:bg-primary/50 transition-colors" />
+            
+            {/* PAINEL CENTRAL: EDITOR */}
             <ResizablePanel defaultSize={60} minSize={30}>
-                <div className="h-full p-4 bg-background">
+                <div className="h-full p-6 bg-background">
                     {currentOrgan ? (
                         <OrganEditor organ={currentOrgan} templates={organTemplates} onChange={(field, value) => updateOrganData(currentOrganIndex, field, value)} />
-                    ) : <div className="flex items-center justify-center h-full text-muted-foreground">Selecione uma estrutura ao lado</div>}
+                    ) : <div className="flex flex-col items-center justify-center h-full text-muted-foreground opacity-50"><Stethoscope className="h-16 w-16 mb-4 stroke-1"/><p>Selecione uma estrutura para editar</p></div>}
                 </div>
             </ResizablePanel>
-            <ResizableHandle withHandle className="bg-border w-2 hover:bg-primary/20 transition-colors" />
-            <ResizablePanel defaultSize={20} minSize={15} maxSize={30} className="border-l bg-muted/10">
-                <div className="h-full flex flex-col">
-                   <div className="p-2 border-b"><span className="text-xs font-bold text-muted-foreground">ROTEIRO</span></div>
-                   <ScrollArea className="flex-1">
-                      <div className="flex flex-col">
-                         {organsData.map((organ, idx) => (
-                            <button key={idx} className={`text-left px-3 py-2 text-sm border-b border-transparent hover:bg-white transition-colors flex items-center justify-between ${currentOrganIndex === idx ? 'bg-white font-bold text-primary border-l-4 border-l-primary shadow-sm' : 'text-muted-foreground'} ${organ.report_text ? 'text-green-700' : ''}`} onClick={() => setCurrentOrganIndex(idx)}>
-                              <span className="truncate">{organ.organ_name}</span>
-                              {organ.report_text && <Check className="h-3 w-3" />}
-                            </button>
-                         ))}
-                      </div>
-                   </ScrollArea>
-                </div>
+            
+            <ResizableHandle withHandle className="bg-border w-1 hover:bg-primary/50 transition-colors" />
+            
+            {/* PAINEL DIREITO: ROTEIRO */}
+            <ResizablePanel defaultSize={20} minSize={15} maxSize={30} className="border-l bg-card flex flex-col">
+                <div className="p-3 border-b bg-muted/10"><span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Roteiro do Exame</span></div>
+                <ScrollArea className="flex-1">
+                    <div className="flex flex-col p-2 gap-1">
+                        {organsData.map((organ, idx) => (
+                        <button 
+                            key={idx} 
+                            className={`text-left px-3 py-2.5 text-sm rounded-md transition-all flex items-center justify-between group ${
+                                currentOrganIndex === idx 
+                                ? 'bg-primary/10 text-primary font-semibold border-l-4 border-primary shadow-sm' 
+                                : 'text-muted-foreground hover:bg-muted hover:text-foreground border-l-4 border-transparent'
+                            }`} 
+                            onClick={() => setCurrentOrganIndex(idx)}
+                        >
+                            <span className="truncate">{organ.organ_name}</span>
+                            {organ.report_text ? <Check className="h-3.5 w-3.5 text-green-500" /> : <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-50" />}
+                        </button>
+                        ))}
+                    </div>
+                </ScrollArea>
             </ResizablePanel>
          </ResizablePanelGroup>
       </div>
       
+      {/* ÁREA DE IMPRESSÃO (Oculta na tela) */}
       <div id="printable-report">
          <table className="report-table">
             <thead>
@@ -630,15 +625,12 @@ const exportToDocx = async () => {
                      {organsData.map((o, i) => o.report_text && (
                         <div key={i} className="organ-section avoid-break">
                            <h3 className="organ-title">{translate(o.organ_name, reportLanguage)}</h3>
-                           <div className="organ-text">
+                           <div className="organ-text text-foreground">
                                {renderProcessedTextHTML(o.report_text, o.measurements)}
                            </div>
-{getReferenceValueText(o.organ_name) && (
-    // 🟢 CORREÇÃO AQUI: Adicionado dark:text-gray-400
-    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 italic border-l-2 border-gray-300 dark:border-gray-700 pl-2">
-        {getReferenceValueText(o.organ_name)}
-    </p>
-)}
+                           {getReferenceValueText(o.organ_name) && (
+                               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 italic border-l-2 border-gray-300 dark:border-gray-700 pl-2">{getReferenceValueText(o.organ_name)}</p>
+                           )}
                         </div>
                      ))}
 
@@ -715,44 +707,74 @@ function OrganEditor({ organ, templates, onChange }) {
 
   return (
     <>
-        <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-primary flex items-center gap-2">{organ.organ_name}</h2>
+        <div className="flex items-center justify-between mb-6">
+            <h2 className="text-3xl font-bold text-foreground flex items-center gap-3 tracking-tight">
+                {organ.organ_name}
+            </h2>
         </div>
-        <div className="grid grid-cols-2 gap-4 h-[calc(100%-4rem)]">
-            <div className="flex flex-col gap-3 h-full">
-                <div className="bg-muted/20 p-3 rounded border">
-                    <div className="space-y-2">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100%-5rem)]">
+            <div className="flex flex-col gap-4 h-full">
+                {/* ÁREA DE MEDIDAS */}
+                <div className="bg-muted/30 p-4 rounded-lg border border-border/50 shadow-sm">
+                    <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 block">Medidas da Estrutura</Label>
+                    <div className="space-y-3">
                         {[1, 2, 3].map(num => (
-                            <div key={num} className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-muted-foreground w-6">M{num}</span>
-                                <Input className="h-7 bg-white text-sm" placeholder="0.0" type="number" value={measurements[`m${num}`]?.value || ''} onChange={(e) => setMeasurement(num, e.target.value, 'cm')} />
-                                <span className="text-xs text-muted-foreground">cm</span>
+                            <div key={num} className="flex items-center gap-3">
+                                <span className="text-xs font-bold text-primary w-6">M{num}</span>
+                                <Input 
+                                    className="h-8 bg-background border-input" 
+                                    placeholder="0.0" 
+                                    type="number" 
+                                    value={measurements[`m${num}`]?.value || ''} 
+                                    onChange={(e) => setMeasurement(num, e.target.value, 'cm')} 
+                                />
+                                <span className="text-xs text-muted-foreground font-medium">cm</span>
                             </div>
                         ))}
                     </div>
                 </div>
-                <div className="flex-1 flex flex-col min-h-0">
-                    <div className="flex justify-between items-end mb-1">
-                        <Label>Texto</Label>
-                        <div className="flex gap-1">
-                            <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => insertFormatting('bold')} title="Negrito"><Bold className="h-3 w-3"/></Button>
-                            <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => insertFormatting('italic')} title="Itálico"><Italic className="h-3 w-3"/></Button>
+                
+                {/* ÁREA DE TEXTO */}
+                <div className="flex-1 flex flex-col min-h-0 relative group">
+                    <div className="flex justify-between items-end mb-2">
+                        <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Texto do Laudo</Label>
+                        <div className="flex gap-1 opacity-50 group-hover:opacity-100 transition-opacity">
+                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => insertFormatting('bold')} title="Negrito"><Bold className="h-3.5 w-3.5"/></Button>
+                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => insertFormatting('italic')} title="Itálico"><Italic className="h-3.5 w-3.5"/></Button>
                         </div>
                     </div>
-                    <Textarea ref={textAreaRef} className="flex-1 resize-none font-mono text-base p-4 leading-relaxed shadow-sm" value={text} onChange={e => updateText(e.target.value)} placeholder="Escreva aqui..." />
-                    <p className="text-xs text-muted-foreground mt-1">Dica: Use **negrito** e *itálico*.</p>
+                    <Textarea 
+                        ref={textAreaRef} 
+                        className="flex-1 resize-none font-mono text-base p-4 leading-relaxed shadow-sm bg-background border-border/80 focus-visible:ring-primary/20" 
+                        value={text} 
+                        onChange={e => updateText(e.target.value)} 
+                        placeholder="Descreva os achados aqui..." 
+                    />
                 </div>
             </div>
-            <Card className="flex flex-col h-full border-l-4 border-l-primary/20">
-                <CardHeader className="py-2 px-3 bg-muted/20 border-b shrink-0"><CardTitle className="text-xs">MODELOS</CardTitle></CardHeader>
-                <ScrollArea className="flex-1 bg-muted/5">
-                    <div className="p-2 space-y-2">
+
+            {/* BARRA DE MODELOS */}
+            <Card className="flex flex-col h-full border-l-4 border-l-primary/10 bg-card/50">
+                <CardHeader className="py-3 px-4 bg-muted/20 border-b shrink-0">
+                    <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Frases Modelo</CardTitle>
+                </CardHeader>
+                <ScrollArea className="flex-1 bg-transparent p-2">
+                    <div className="space-y-2">
                         {templates.length > 0 ? templates.map(t => (
-                            <div key={t.id} className="p-2 bg-card border rounded hover:border-primary cursor-pointer transition-all" onClick={() => addTemplate(t.text)}>
-                                <div className="font-bold text-xs text-primary">{t.title}</div>
-                                <div className="text-[10px] text-muted-foreground line-clamp-2">{t.text}</div>
+                            <div 
+                                key={t.id} 
+                                className="p-3 bg-card border border-border/60 rounded-md hover:border-primary/50 hover:shadow-sm cursor-pointer transition-all active:scale-[0.99] group" 
+                                onClick={() => addTemplate(t.text)}
+                            >
+                                <div className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">{t.title}</div>
+                                <div className="text-xs text-muted-foreground line-clamp-2 mt-1 font-light leading-snug">{t.text}</div>
                             </div>
-                        )) : <div className="p-4 text-xs text-center text-muted-foreground">Sem modelos cadastrados.</div>}
+                        )) : (
+                            <div className="p-8 text-center">
+                                <p className="text-sm text-muted-foreground">Sem modelos cadastrados.</p>
+                                <p className="text-xs text-muted-foreground/50 mt-1">Vá em Configurações > Templates.</p>
+                            </div>
+                        )}
                     </div>
                 </ScrollArea>
             </Card>

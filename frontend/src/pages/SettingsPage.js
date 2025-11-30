@@ -1,11 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { X, Upload } from 'lucide-react';
+import { X, Upload, Save, FileText, Database, Shield, UserCog, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { db } from '@/services/database';
 import { TemplatesManager } from '@/components/TemplatesManager';
@@ -20,9 +18,7 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('profiles');
   const navigate = useNavigate();
   
-  useEffect(() => {
-    loadAllData();
-  }, []);
+  useEffect(() => { loadAllData(); }, []);
 
   const loadAllData = async () => {
     await loadSettings();
@@ -30,87 +26,74 @@ export default function SettingsPage() {
     await loadReferenceValues();
   };
 
-  const loadSettings = async () => {
-    const s = await db.getSettings();
-    setSettings(s);
-  };
-
-  const loadTemplates = async () => {
-    const t = await db.getTemplates();
-    setTemplates(t);
-  };
-
-  const loadReferenceValues = async () => {
-    const rv = await db.getReferenceValues();
-    setReferenceValues(rv);
-  };
+  const loadSettings = async () => { const s = await db.getSettings(); setSettings(s); };
+  const loadTemplates = async () => { const t = await db.getTemplates(); setTemplates(t); };
+  const loadReferenceValues = async () => { const rv = await db.getReferenceValues(); setReferenceValues(rv); };
   
-  const saveSettings = async (data) => {
-    try {
-      await db.updateSettings(data);
-      toast.success('Configurações salvas!');
-      loadSettings();
-    } catch (error) {
-      toast.error('Erro ao salvar configurações');
-    }
-  };
-
-  if (!settings) {
-    return <div>Carregando...</div>;
-  }
+  if (!settings) return <div className="flex h-screen items-center justify-center text-muted-foreground">Carregando...</div>;
 
   return (
-    <div className="min-h-screen bg-background" data-testid="settings-page">
-      <div className="container mx-auto p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-foreground" style={{ fontFamily: 'Manrope, sans-serif' }}>
-            Configurações
-          </h1>
-          <div className="flex gap-2 items-center">
+    <div className="min-h-screen bg-background transition-colors duration-300" data-testid="settings-page">
+      <div className="container mx-auto max-w-6xl p-6">
+        
+        {/* CABEÇALHO */}
+        <div className="flex justify-between items-center mb-8">
+          <div className="flex flex-col">
+            <h1 className="text-3xl font-bold text-foreground tracking-tight">Configurações</h1>
+            <p className="text-muted-foreground text-sm">Gerencie perfis, textos e segurança do sistema.</p>
+          </div>
+          
+          <div className="flex gap-3 items-center">
             <ThemeToggle />
-            
-            {/* 🔴 REMOVIDO: Input e Botão de Importar Backup duplicados */}
-
-            <Button onClick={() => navigate('/')} variant="ghost">
-              <X className="mr-2 h-4 w-4" />
-              Voltar
+            <Button onClick={() => navigate('/')} variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground">
+              <X className="h-4 w-4" /> Voltar
             </Button>
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="profiles">Perfis (Empresas)</TabsTrigger>
-            <TabsTrigger value="backup">Backup</TabsTrigger>
-            <TabsTrigger value="templates">Textos Padrão</TabsTrigger>
-            <TabsTrigger value="references">Valores de Ref.</TabsTrigger>
+        {/* NAVEGAÇÃO ENTRE ABAS */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4 h-12 bg-muted/50 p-1 rounded-lg">
+            <TabsTrigger value="profiles" className="gap-2 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm">
+                <UserCog className="h-4 w-4" /> Perfis (Empresas)
+            </TabsTrigger>
+            <TabsTrigger value="templates" className="gap-2 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm">
+                <FileText className="h-4 w-4" /> Textos Padrão
+            </TabsTrigger>
+            <TabsTrigger value="references" className="gap-2 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm">
+                <Database className="h-4 w-4" /> Valores Ref.
+            </TabsTrigger>
+            <TabsTrigger value="backup" className="gap-2 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm">
+                <Shield className="h-4 w-4" /> Backup
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="profiles">
-             <ProfilesManager onProfileChanged={loadAllData} />
-          </TabsContent>
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <TabsContent value="profiles">
+                <ProfilesManager onProfileChanged={loadAllData} />
+            </TabsContent>
 
-          <TabsContent value="backup">
-            <BackupSettings onImportSuccess={loadAllData} />
-          </TabsContent>
+            <TabsContent value="backup">
+                <BackupSettings onImportSuccess={loadAllData} />
+            </TabsContent>
 
-          <TabsContent value="templates">
-            <TemplatesManager templates={templates} onUpdate={loadTemplates} />
-          </TabsContent>
+            <TabsContent value="templates">
+                <TemplatesManager templates={templates} onUpdate={loadTemplates} />
+            </TabsContent>
 
-          <TabsContent value="references">
-            <ReferenceValuesManager values={referenceValues} onUpdate={loadReferenceValues} />
-          </TabsContent>
+            <TabsContent value="references">
+                <ReferenceValuesManager values={referenceValues} onUpdate={loadReferenceValues} />
+            </TabsContent>
+          </div>
         </Tabs>
       </div>
     </div>
   );
 }
 
-// --- SUB-COMPONENTES (BackupSettings simplificado conforme solicitado antes) ---
-
+// --- SUB-COMPONENTE DE BACKUP INTEGRADO ---
 function BackupSettings({ onImportSuccess }) {
-  const fileInputRef = React.useRef(null); // 🟢 1. Referência para o input
+  const fileInputRef = useRef(null);
 
   const handleExportFull = async () => {
     try {
@@ -118,10 +101,7 @@ function BackupSettings({ onImportSuccess }) {
       const blob = new Blob([json], { type: 'application/json' });
       downloadFile(blob, `TVUSVET_Backup_Completo_${new Date().toISOString().split('T')[0]}.json`);
       toast.success('Backup Completo salvo!');
-    } catch (error) {
-      console.error(error);
-      toast.error('Erro ao exportar');
-    }
+    } catch (error) { console.error(error); toast.error('Erro ao exportar'); }
   };
 
   const handleExportBase = async () => {
@@ -129,35 +109,24 @@ function BackupSettings({ onImportSuccess }) {
           const json = await db.exportBaseData();
           const blob = new Blob([json], { type: 'application/json' });
           downloadFile(blob, `TVUSVET_Textos_Refs_${new Date().toISOString().split('T')[0]}.json`);
-          
-          toast.success('Arquivo gerado! Você pode salvar no Drive manualmente.');
-          // window.open removido conforme solicitado
+          toast.success('Arquivo gerado! Salve onde preferir (Drive/Email).');
       } catch (error) { toast.error('Erro ao exportar bases'); }
   };
 
   const handleImport = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
-    
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const json = e.target.result;
-        // Tenta importar
-        const ok = await db.importBackup(json);
+        const ok = await db.importBackup(e.target.result);
         if (ok) {
           toast.success('Dados importados com sucesso!');
-          if (onImportSuccess) onImportSuccess(); // Atualiza a tela
-        } else {
-          toast.error('Arquivo inválido ou corrompido');
-        }
-      } catch (err) { 
-          console.error(err);
-          toast.error('Erro ao ler arquivo'); 
-      }
+          if (onImportSuccess) onImportSuccess();
+        } else { toast.error('Arquivo inválido'); }
+      } catch (err) { toast.error('Erro ao ler arquivo'); }
     };
     reader.readAsText(file);
-    // Limpa o input para permitir importar o mesmo arquivo 2x se precisar
     event.target.value = ''; 
   };
 
@@ -173,54 +142,38 @@ function BackupSettings({ onImportSuccess }) {
   };
 
   return (
-    <Card>
+    <Card className="border-l-4 border-l-primary/50">
       <CardHeader>
         <CardTitle>Central de Backup</CardTitle>
-        <CardDescription>Gerencie seus dados com segurança.</CardDescription>
+        <CardDescription>Mantenha seus dados seguros e sincronizados.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        
-        {/* CARD 1: Backup Completo */}
-        <div className="border p-4 rounded-lg bg-muted/30 dark:bg-slate-900/50">
-            <h3 className="font-bold mb-2 flex items-center gap-2">💾 Backup Completo (PC)</h3>
-            <p className="text-sm text-muted-foreground mb-4">Salva tudo: Pacientes, Exames, Imagens e Configurações.</p>
-            <Button onClick={handleExportFull} variant="default" className="w-full sm:w-auto">
-                <Upload className="mr-2 h-4 w-4" /> Baixar Completo (.json)
-            </Button>
+        <div className="grid md:grid-cols-2 gap-4">
+            {/* Opção 1: Backup Completo */}
+            <div className="border p-5 rounded-lg bg-card hover:bg-accent/5 transition-colors border-border/60 shadow-sm">
+                <h3 className="font-bold mb-2 flex items-center gap-2 text-foreground"><Save className="h-4 w-4 text-primary"/> Backup Completo (PC)</h3>
+                <p className="text-xs text-muted-foreground mb-4 leading-relaxed">Salva tudo: Pacientes, Exames, Imagens e Configurações. Ideal para segurança local.</p>
+                <Button onClick={handleExportFull} className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
+                    <Download className="mr-2 h-4 w-4" /> Baixar Completo
+                </Button>
+            </div>
+
+            {/* Opção 2: Backup Leve */}
+            <div className="border p-5 rounded-lg bg-card hover:bg-accent/5 transition-colors border-border/60 shadow-sm">
+                <h3 className="font-bold mb-2 flex items-center gap-2 text-foreground"><Upload className="h-4 w-4 text-blue-500"/> Sincronizar Textos</h3>
+                <p className="text-xs text-muted-foreground mb-4 leading-relaxed">Salva apenas Textos Padrão e Referências. Arquivo leve para enviar por email ou Drive.</p>
+                <Button onClick={handleExportBase} variant="outline" className="w-full border-primary/20 text-primary hover:bg-primary/5">
+                    <Download className="mr-2 h-4 w-4" /> Baixar Apenas Textos
+                </Button>
+            </div>
         </div>
 
-        {/* CARD 2: Backup Leve */}
-        <div className="border p-4 rounded-lg bg-blue-50/50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900">
-            <h3 className="font-bold mb-2 text-blue-700 dark:text-blue-400 flex items-center gap-2">☁️ Sincronizar Textos</h3>
-            <p className="text-sm text-blue-600/80 dark:text-blue-300/70 mb-4">
-                Salva apenas Textos Padrão e Referências. Arquivo leve para jogar no Drive/Email.
-            </p>
-            <Button onClick={handleExportBase} variant="outline" className="w-full sm:w-auto border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30">
-                <Upload className="mr-2 h-4 w-4" /> Baixar Apenas Textos
+        <div className="pt-6 border-t border-border">
+            <input ref={fileInputRef} type="file" accept=".json" onChange={handleImport} className="hidden" />
+            <Button variant="secondary" className="w-full border-dashed border-2 border-muted-foreground/20 hover:border-primary/50 h-12 bg-muted/30" onClick={() => fileInputRef.current.click()}>
+                <Database className="mr-2 h-4 w-4" /> Clique aqui para Restaurar um Backup (Importar)
             </Button>
         </div>
-
-        {/* ÁREA DE IMPORTAÇÃO CORRIGIDA */}
-        <div className="pt-4 border-t">
-            {/* Input Invisível conectado à Ref */}
-            <input 
-                ref={fileInputRef}
-                type="file" 
-                accept=".json" 
-                onChange={handleImport} 
-                className="hidden" 
-            />
-            {/* Botão que clica no input via código */}
-            <Button 
-                variant="secondary" 
-                className="w-full border-dashed border-2 hover:bg-accent"
-                onClick={() => fileInputRef.current.click()} // 🟢 2. Ação direta de clique
-            >
-                <Upload className="mr-2 h-4 w-4" />
-                Clique aqui para Restaurar um Backup (Importar)
-            </Button>
-        </div>
-
       </CardContent>
     </Card>
   );
